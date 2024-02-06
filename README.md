@@ -1,2 +1,2 @@
-# We are in maintenance
-# Bakımdayız
+# We are in maintenance!
+# Bakımdayız!
