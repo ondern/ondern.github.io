@@ -1,0 +1,10 @@
+node_modules/
+test-results/
+playwright-report/
+.shots/
+.env
+.env.*
+!.env.example
+.DS_Store
+.pending/
+tests/.private-denylist.txt

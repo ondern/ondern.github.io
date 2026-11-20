@@ -1,0 +1,47 @@
+{
+  "_readme": "Featured public repositories under github.com/ondern, stored locally so the site never calls the GitHub API when a visitor opens it. 'upstream' and 'snapshot' were copied from the GitHub REST API (repos/ondern/<name>) on 2026-11-20. To refresh, re-run that command and update description and pushedAt.",
+  "featured": [
+    {
+      "name": "Veto",
+      "fork": true,
+      "upstream": {
+        "fullName": "ProfessorQuantumUniverse/Veto",
+        "url": "https://github.com/ProfessorQuantumUniverse/Veto",
+        "language": "Kotlin"
+      },
+      "snapshot": {
+        "description": "A nice Virus Total Android Client.",
+        "retrieved": "2026-11-20",
+        "pushedAt": "2026-11-19T13:06:51Z"
+      }
+    },
+    {
+      "name": "adns",
+      "fork": true,
+      "upstream": {
+        "fullName": "eyalm2000/adns",
+        "url": "https://github.com/eyalm2000/adns",
+        "language": "Kotlin"
+      },
+      "snapshot": {
+        "description": "Android's Private DNS Supercharged",
+        "retrieved": "2026-11-20",
+        "pushedAt": "2026-11-19T11:08:32Z"
+      }
+    },
+    {
+      "name": "loophole",
+      "fork": true,
+      "upstream": {
+        "fullName": "eyalm2000/loophole",
+        "url": "https://github.com/eyalm2000/loophole",
+        "language": "TypeScript"
+      },
+      "snapshot": {
+        "description": "Experimental DNS-over-HTTPS on Android with Private DNS",
+        "retrieved": "2026-11-20",
+        "pushedAt": "2026-11-19T07:25:41Z"
+      }
+    }
+  ]
+}
