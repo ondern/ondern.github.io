@@ -1,5 +1,5 @@
-// Optional, local-only list of words that must never appear on the site (for example a private
-// employer name). Put one word per line in tests/.private-denylist.txt. That file is git-ignored and,
+// Optional, local-only list of words that must never appear on the site (for example a name that
+// must stay private). Put one word per line in tests/.private-denylist.txt. That file is git-ignored and,
 // because it starts with a dot, is not published by GitHub Pages. Without it the check is reported as skipped.
 import { existsSync, readFileSync } from 'node:fs';
 

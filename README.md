@@ -28,10 +28,10 @@ Lighthouse (not a project dependency): start `npm start`, then run
 
 ## Editing content
 
-- **Text and translations:** edit the matching key in all three `i18n/*.json` files. `npm run test:i18n` fails on missing keys, mismatched `{placeholders}`, and if the static English footer notice in `index.html` differs from `en.json`. Items marked `[Placeholder]` (experience, education, longer bio, extra skills) are for the owner to replace; add new entries in `index.html` using `data-i18n` keys.
+- **Text and translations:** edit the matching key in all three `i18n/*.json` files. `npm run test:i18n` fails on missing keys, mismatched `{placeholders}`, and if the static English footer notice in `index.html` differs from `en.json`. To add new entries, use `data-i18n` keys.
 - **Portrait:** `assets/img/portrait-640.webp` and `portrait-320.webp` (optimized from the LinkedIn profile photo). To change it, replace both files (keep square) and update the `alt` text key `hero.photo` in all three `i18n` files.
 - **Featured projects and recent activity:** both come from `data/projects.json`, which is stored on the site; visitors' browsers never call the GitHub API. Each entry has `name` (a repo under github.com/ondern), optional `fork: true`, `upstream` (`fullName`, `url`, `language`) and a `snapshot` (`description`, `pushedAt`, `retrieved`). To refresh, run `gh api repos/ondern/<name> --jq "{description, pushed_at}"` on your computer and copy the values; do not rewrite them as your own claims.
-- **Experience and education:** the homepage is a short introduction; full history lives on LinkedIn. Edit the `exp.*` and `edu.*` keys in the three `i18n/*.json` files, and organization names in `index.html`. The current employer is deliberately not named; to add it, put `<span class="org">Name</span> · ` before the dates in the first `.job` card.
+- **Experience and education:** the homepage is a short introduction; full history lives on LinkedIn. Edit the `exp.*` and `edu.*` keys in the three `i18n/*.json` files, and organization names in `index.html`. Employers are intentionally not named on the site; each position uses a neutral description.
 - **Maintaining credentials:** add one object per distinct credential to `data/credentials.json` `items`:
   ```json
   {
@@ -62,7 +62,7 @@ GitHub Pages cannot set HTTP headers or rate-limit requests. Implemented: a CSP 
 
 ## Deployment
 
-Pages serves `main` directly; there is no workflow. Merging to `main` publishes. Rollback: `git revert` the commit and push. Do not publish before the owner confirms content and legal items.
+Pages serves `main` directly; there is no workflow. Merging to `main` publishes. Rollback: `git revert` the commit and push.
 
 ## Recent GitHub activity
 
@@ -74,4 +74,4 @@ No licence file exists, so the original text, design and code are "all rights re
 
 ## Optional local privacy denylist
 
-Create `tests/.private-denylist.txt` (git-ignored, one word per line) with words that must never appear on the site, such as a private employer name. The tests then fail if one shows up. Keeping the words in that file, not in the tests, stops them from being published. Without the file the check is skipped.
+Create `tests/.private-denylist.txt` (git-ignored, one word per line) with words that must never appear on the site, such as a name that must stay private. The tests then fail if one shows up. Keeping the words in that file, not in the tests, stops them from being published. Without the file the check is skipped.
