@@ -208,6 +208,7 @@ textarea.control { resize: vertical; }
   .header-tools { gap: var(--sp-1); }
   .header-tools select.control { max-width: 5.75rem; padding-inline: .4rem; }
   .brand { font-size: .95rem; }
+  .hero-visual { max-width: 11.5rem; }
   .toolbar { grid-template-columns: 1fr; }
   .dialog dl { grid-template-columns: 1fr; }
 }
