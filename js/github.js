@@ -32,15 +32,28 @@ function projectCard(entry) {
   return node('li', {}, card);
 }
 
+// Pull requests come from the same saved file. Only well-formed entries with github.com links are shown.
+const isPull = (p) => p && /^[\w.-]+\/[\w.-]+$/.test(p.repo) && Number.isInteger(p.number) && typeof p.title === 'string'
+  && isGithubUrl(p.url) && ['open', 'merged'].includes(p.state);
+function pullItem(p) {
+  return node('li', {},
+    node('a', { href: p.url, target: '_blank', rel: 'noopener', textContent: p.title }),
+    node('span', { className: 'meta', textContent: [`${p.repo}#${p.number}`, t(p.state === 'open' ? 'pr.open' : 'pr.merged'), p.updatedAt ? t('proj.updated', { date: formatDate(p.updatedAt) }) : null].filter(Boolean).join(' \u00b7 ') }));
+}
 export async function initGithub() {
   if (!$('proj-grid')) return;
   let featured = [];
+  let pulls = [];
   try {
     const res = await fetch('data/projects.json');
-    if (res.ok) featured = ((await res.json()).featured || []).filter((f) => f && /^[\w.-]+$/.test(f.name));
+    if (res.ok) {
+      const data = await res.json();
+      featured = (data.featured || []).filter((f) => f && /^[\w.-]+$/.test(f.name));
+      pulls = (data.pulls || []).filter(isPull);
+    }
   } catch (e) { /* treated as no featured projects */ }
-
   const hidden = new Set(GITHUB_EXCLUDE.map((n) => n.toLowerCase()));
+  pulls = pulls.filter((p) => !hidden.has(p.repo.split('/')[1].toLowerCase()));
   const render = () => {
     $('proj-status').textContent = featured.length ? '' : t('proj.empty');
     $('proj-grid').replaceChildren(...featured.map(projectCard));
@@ -50,6 +63,13 @@ export async function initGithub() {
       .sort((a, b) => b.snapshot.pushedAt.localeCompare(a.snapshot.pushedAt)).slice(0, 5);
     const retrieved = featured.map((f) => f.snapshot?.retrieved).filter(Boolean).sort().pop();
     $('act-intro').textContent = retrieved ? t('act.intro', { date: formatDate(retrieved) }) : '';
+    const wrap = $('pr-wrap');
+    if (wrap) {
+      wrap.hidden = !pulls.length;
+      const stamp = featured.map((f) => f.snapshot?.retrieved).filter(Boolean).sort().pop();
+      $('pr-intro').textContent = stamp ? t('pr.intro', { date: formatDate(stamp) }) : '';
+      $('pr-list').replaceChildren(...pulls.map(pullItem));
+    }
     $('act-list').replaceChildren(...recent.map((f) => node('li', {},
       node('a', { href: repoUrl(f.name), target: '_blank', rel: 'noopener', textContent: f.fork ? `${f.name} (${t('proj.fork')})` : f.name }),
       node('span', { className: 'meta', textContent: t('proj.updated', { date: formatDate(f.snapshot.pushedAt) }) }))));

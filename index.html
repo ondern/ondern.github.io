@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title data-i18n="meta.title">Önder Nuray | IT Support Engineer</title>
   <meta name="description" content="Personal portfolio of Önder Nuray: IT support engineering, Python, Linux, AWS and AI-assisted development.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; form-action 'none'; base-uri 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://api.nuray.io; frame-src https://challenges.cloudflare.com; form-action 'none'; base-uri 'self'">
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="color-scheme" content="light dark">
   <link rel="canonical" href="https://nuray.io/">
@@ -16,6 +16,7 @@
   <meta property="og:url" content="https://nuray.io/">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="assets/fonts/google-sans-latin.woff2" as="font" type="font/woff2" crossorigin>
   <script src="js/theme-init.js"></script>
   <link rel="stylesheet" href="css/styles.css">
   <script type="module" src="js/app.js"></script>
@@ -68,9 +69,9 @@
             <a class="btn btn-secondary" href="#projects" data-i18n="hero.ctaWork">See projects</a>
           </div>
           <ul class="social-row">
-            <li><a href="https://github.com/ondern" rel="me noopener" target="_blank">GitHub</a></li>
-            <li><a href="https://www.linkedin.com/in/ondernuray/" rel="me noopener" target="_blank">LinkedIn</a></li>
-            <li><a href="https://www.credly.com/users/ondernuray/badges/credly" rel="noopener" target="_blank">Credly</a></li>
+            <li><a class="icon-link" href="https://github.com/ondern" rel="me noopener" target="_blank" title="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><span class="visually-hidden">GitHub</span></a></li>
+            <li><a class="icon-link" href="https://www.linkedin.com/in/ondernuray/" rel="me noopener" target="_blank" title="LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span class="visually-hidden">LinkedIn</span></a></li>
+            <li><a class="icon-link" href="https://www.credly.com/users/ondernuray/badges/credly" rel="noopener" target="_blank" title="Credly"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" d="M12 1.6l9.1 5.25v10.3L12 22.4l-9.1-5.25V6.85z"/><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M15 9.6a3.8 3.8 0 1 0 0 4.8"/></svg><span class="visually-hidden">Credly</span></a></li>
           </ul>
         </div>
         <!-- Portrait slot: replace the <svg> below with an <img width height alt> when a photo is approved. -->
@@ -111,7 +112,7 @@
             <p data-i18n="exp.3.summary">Delivered dedicated IT support to exchange and trading floor personnel, maintaining the availability and performance of critical workstations and specialized trading equipment in a high-pressure financial environment. Minimized downtime through rapid hardware troubleshooting, proactive maintenance, and close collaboration with IT teams on upgrades, replacements, and business continuity.</p>
           </li>
         </ol>
-        <p><span data-i18n="exp.more">More about my career and projects:</span> <a href="https://www.linkedin.com/in/ondernuray/" target="_blank" rel="me noopener">LinkedIn</a> · <a href="https://github.com/ondern" target="_blank" rel="me noopener">GitHub</a></p>
+        <p data-i18n="exp.more">Based on my public LinkedIn and GitHub profiles.</p>
       </div>
     </section>
 
@@ -253,7 +254,7 @@
         <p id="cred-status" class="status" role="status" aria-live="polite" data-i18n="cred.loading">Loading credentials…</p>
         <ul id="cred-grid" class="grid" aria-label=""></ul>
         <p><button type="button" id="cred-toggle" class="btn btn-secondary btn-small" hidden></button></p>
-        <p><a href="https://www.credly.com/users/ondernuray/badges/credly" target="_blank" rel="noopener" data-i18n="cred.profileLink">View all badges on Credly</a></p>
+        <p data-i18n="cred.profileLink">Based on my public Credly profile.</p>
         <dialog id="cred-dialog" class="dialog" aria-labelledby="cred-dialog-title">
           <div id="cred-dialog-body"></div>
           <form method="dialog"><button class="btn btn-secondary" id="cred-close" data-i18n="cred.close">Close</button></form>
@@ -269,6 +270,11 @@
         </div>
         <p id="proj-status" class="status" role="status" aria-live="polite"></p>
         <ul id="proj-grid" class="grid"></ul>
+        <div id="pr-wrap" hidden>
+          <h3 class="sub-title" data-i18n="pr.title">Pull requests</h3>
+          <p id="pr-intro" class="meta"></p>
+          <ul id="pr-list" class="activity"></ul>
+        </div>
         <h3 class="sub-title" data-i18n="act.title">Recent GitHub activity</h3>
         <p id="act-intro" class="meta">Most recently updated public repositories.</p>
         <ul id="act-list" class="activity"></ul>
@@ -280,24 +286,24 @@
       <div class="container contact-grid">
         <div class="reveal">
           <h2 id="contact-title" data-i18n="contact.title">Contact</h2>
-          <p class="lead" data-i18n="contact.intro">The contact form is not active yet. You can find me on the profiles below.</p>
+          <p class="lead" data-i18n="contact.intro">Send me a message with the form, or find me on the profiles below.</p>
           <h3 data-i18n="contact.direct">Profiles</h3>
           <ul class="channels">
-            <li><a href="https://www.linkedin.com/in/ondernuray/" target="_blank" rel="me noopener" data-i18n="contact.linkedin">LinkedIn</a></li>
-            <li><a href="https://github.com/ondern" target="_blank" rel="me noopener" data-i18n="contact.github">GitHub</a></li>
-            <li><a href="https://www.credly.com/users/ondernuray/badges/credly" target="_blank" rel="noopener">Credly</a></li>
+            <li><a class="icon-link" href="https://www.linkedin.com/in/ondernuray/" rel="me noopener" target="_blank" title="LinkedIn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg><span class="visually-hidden" data-i18n="contact.linkedin">LinkedIn</span></a></li>
+            <li><a class="icon-link" href="https://github.com/ondern" rel="me noopener" target="_blank" title="GitHub"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg><span class="visually-hidden" data-i18n="contact.github">GitHub</span></a></li>
+            <li><a class="icon-link" href="https://www.credly.com/users/ondernuray/badges/credly" rel="noopener" target="_blank" title="Credly"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" d="M12 1.6l9.1 5.25v10.3L12 22.4l-9.1-5.25V6.85z"/><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M15 9.6a3.8 3.8 0 1 0 0 4.8"/></svg><span class="visually-hidden">Credly</span></a></li>
           </ul>
         </div>
-        <form id="contact-form" class="card form" novalidate aria-describedby="form-inactive">
-          <p id="form-inactive" class="banner" role="note" data-i18n="contact.inactive">This form is not active yet, so messages cannot be sent for now. Nothing you type here is transmitted or stored. Please contact me on LinkedIn.</p>
-          <fieldset class="form-fields" disabled>
+        <form id="contact-form" class="card form" novalidate aria-describedby="form-privacy">
+          <p id="form-privacy" class="banner" role="note" data-i18n="contact.privacy">Contact form messages are processed through Cloudflare and Resend for bot protection and email delivery. Please do not submit sensitive personal information.</p>
+          <fieldset class="form-fields">
             <div class="field">
               <label for="cf-name" data-i18n="contact.name">Name</label>
-              <input id="cf-name" name="name" class="control" type="text" autocomplete="off" maxlength="100">
+              <input id="cf-name" name="name" class="control" type="text" autocomplete="name" maxlength="100" aria-required="true">
             </div>
             <div class="field">
               <label for="cf-email" data-i18n="contact.email">Email address</label>
-              <input id="cf-email" name="email" class="control" type="email" autocomplete="off" maxlength="200">
+              <input id="cf-email" name="email" class="control" type="email" autocomplete="email" maxlength="200" aria-required="true">
             </div>
             <div class="field">
               <label for="cf-subject" data-i18n="contact.subject">Subject (optional)</label>
@@ -305,10 +311,16 @@
             </div>
             <div class="field">
               <label for="cf-message" data-i18n="contact.message">Message</label>
-              <textarea id="cf-message" name="message" class="control" rows="6" maxlength="3000"></textarea>
+              <textarea id="cf-message" name="message" class="control" rows="6" maxlength="3000" aria-required="true"></textarea>
             </div>
+            <div class="hp" aria-hidden="true">
+              <label for="cf-website">Website</label>
+              <input id="cf-website" name="website" type="text" tabindex="-1" autocomplete="off">
+            </div>
+            <div id="cf-turnstile" class="turnstile-slot"></div>
+            <div id="cf-status" class="form-status" role="status" aria-live="polite"></div>
             <div class="cta-row">
-              <button type="submit" class="btn btn-primary" id="cf-submit" disabled data-i18n="contact.submit">Send message</button>
+              <button type="submit" class="btn btn-primary" id="cf-submit" data-i18n="contact.submit">Send message</button>
             </div>
           </fieldset>
         </form>
@@ -322,7 +334,7 @@
       <ul class="footer-links">
         <li><a href="#top" data-i18n="footer.top">Back to top</a></li>
       </ul>
-      <p class="meta footer-notice" data-i18n="footer.notice">This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. The contact form is currently inactive and does not submit or transmit any data. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.</p>
+      <p class="meta footer-notice" data-i18n="footer.notice">This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. Contact form messages are processed through Cloudflare and Resend for bot protection and email delivery. Please do not submit sensitive personal information. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.</p>
       <p class="meta" data-i18n="footer.attribution">Credential names and badge artwork belong to their issuers.</p>
     </div>
   </footer>

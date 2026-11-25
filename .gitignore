@@ -8,3 +8,5 @@ playwright-report/
 .DS_Store
 .pending/
 tests/.private-denylist.txt
+.dev.vars
+.wrangler/

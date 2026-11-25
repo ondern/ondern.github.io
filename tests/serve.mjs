@@ -10,5 +10,8 @@ http.createServer((req, res) => {
   const f = join(root, p);
   if (!f.startsWith(root) || /node_modules|\.git/.test(p) || !existsSync(f) || statSync(f).isDirectory()) { res.writeHead(404); return res.end('Not found'); }
   res.writeHead(200, { 'Content-Type': MIME[extname(f)] || 'application/octet-stream', 'Cache-Control': 'public, max-age=600' });
-  res.end(readFileSync(f));
+  let body = readFileSync(f);
+  // Local contact-form development only (npm run dev:contact): allow the local mock API in the page CSP.
+  if (process.env.CONTACT_DEV === '1' && p === 'index.html') body = Buffer.from(body.toString('utf8').replace("connect-src 'self' https://api.nuray.io", "connect-src 'self' https://api.nuray.io http://localhost:8787"));
+  res.end(body);
 }).listen(4173, () => console.log('http://localhost:4173'));

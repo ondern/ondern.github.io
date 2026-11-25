@@ -4,6 +4,8 @@ import http from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { chromium } from 'playwright-core';
+import { spawn } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { findPrivate, denylistLoaded } from './denylist.mjs';
 
 const ROOT = process.cwd();
@@ -228,15 +230,15 @@ await test('No automatic third-party requests on load (en/de/tr): only the site\
   }
   return 'only 1 host (localhost) in all 3 page loads';
 });
-await test('Real projects.json: 3 forks with fork tag, upstream links and local descriptions in en/de/tr', async () => {
+await test('Real projects.json: 4 forks with fork tag, upstream links and local descriptions in en/de/tr', async () => {
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: `/?lang=${lang}` });
     const cards = await p.$$eval('#proj-grid .proj-card', (n) => n.map((c) => ({
       name: c.querySelector('h3').textContent, tag: c.querySelector('.tag')?.textContent,
       links: [...c.querySelectorAll('a')].map((a) => a.href), text: c.textContent })));
     await p.context().close();
-    if (cards.map((c) => c.name).join() !== 'Veto,adns,loophole') throw new Error(`${lang}: ${cards.map((c) => c.name)}`);
-    const want = { Veto: ['ProfessorQuantumUniverse/Veto', 'Kotlin'], adns: ['eyalm2000/adns', 'Kotlin'], loophole: ['eyalm2000/loophole', 'TypeScript'] };
+    if (cards.map((c) => c.name).join() !== 'keenetic-sdk,Veto,adns,loophole') throw new Error(`${lang}: ${cards.map((c) => c.name)}`);
+    const want = { 'keenetic-sdk': ['keenetic/keenetic-sdk', 'Makefile'], Veto: ['ProfessorQuantumUniverse/Veto', 'Kotlin'], adns: ['eyalm2000/adns', 'Kotlin'], loophole: ['eyalm2000/loophole', 'TypeScript'] };
     for (const c of cards) {
       if (!c.tag) throw new Error(`${c.name}: no fork tag`);
       if (!c.links.includes(`https://github.com/${want[c.name][0]}`)) throw new Error(`${c.name}: upstream link missing`);
@@ -246,6 +248,47 @@ await test('Real projects.json: 3 forks with fork tag, upstream links and local 
   }
 });
 
+await test('Pull requests: real data lists open and merged PRs in en/de/tr, links to github.com, website repo excluded', async () => {
+  const data = JSON.parse(readFileSync('data/projects.json', 'utf8'));
+  if (!data.pulls.length || data.pulls.some((x) => /^ondern\/ondern\.github\.io$/i.test(x.repo))) throw new Error('data/projects.json: no pulls or website repo present');
+  if (data.featured.some((f) => f.name.toLowerCase() === 'ondern.github.io')) throw new Error('website repo listed in projects');
+  const labels = { en: ['Pull requests', 'Open', 'Merged'], de: ['Pull Requests', 'Offen', 'Zusammengef\u00fchrt'], tr: ["Pull request'ler", 'A\u00e7\u0131k', 'Birle\u015ftirildi'] };
+  for (const lang of ['en', 'de', 'tr']) {
+    const p = await newPage({ path: '/?lang=' + lang });
+    const info = await p.evaluate(() => ({ visible: !document.getElementById('pr-wrap').hidden, heading: document.querySelector('#pr-wrap h3').textContent,
+      items: [...document.querySelectorAll('#pr-list li')].map((li) => ({ href: li.querySelector('a').href, text: li.textContent, rel: li.querySelector('a').rel, target: li.querySelector('a').target })) }));
+    await p.context().close();
+    if (!info.visible || info.heading !== labels[lang][0]) throw new Error(lang + ': PR section/heading ' + info.heading);
+    if (info.items.length !== data.pulls.length) throw new Error(lang + ': item count ' + info.items.length);
+    data.pulls.forEach((pr, i) => {
+      const it = info.items[i];
+      if (it.href !== pr.url || !it.href.startsWith('https://github.com/') || !/noopener/.test(it.rel) || it.target !== '_blank') throw new Error(lang + ': link ' + pr.url);
+      if (!it.text.includes(pr.title) || !it.text.includes(pr.repo + '#' + pr.number)) throw new Error(lang + ': text ' + pr.number);
+      if (!it.text.includes(labels[lang][pr.state === 'open' ? 1 : 2])) throw new Error(lang + ': status label ' + pr.number);
+    });
+  }
+});
+await test('Pull requests: invalid or website-repo entries in the data are ignored; no entries hides the section', async () => {
+  const route = (pulls) => ({ featured: [{ name: 'demo', snapshot: { description: 'A demo', pushedAt: '2025-01-01T00:00:00Z', retrieved: '2025-01-02' } }], pulls });
+  const bad = [
+    { repo: 'a/good', number: 1, title: 'Good <b>title</b>', url: 'https://github.com/a/good/pull/1', state: 'open', updatedAt: '2025-01-01T00:00:00Z' },
+    { repo: 'ondern/ondern.github.io', number: 2, title: 'Website', url: 'https://github.com/ondern/ondern.github.io/pull/2', state: 'open' },
+    { repo: 'a/evil', number: 3, title: 'Evil link', url: 'https://evil.example/x', state: 'open' },
+    { repo: 'a/js', number: 4, title: 'js link', url: 'javascript:alert(1)', state: 'open' },
+    { repo: 'a/closed', number: 5, title: 'Closed', url: 'https://github.com/a/closed/pull/5', state: 'closed' },
+    { repo: 'bad repo', number: 6, title: 'Bad repo', url: 'https://github.com/a/b/pull/6', state: 'open' },
+  ];
+  for (const [pulls, expected] of [[bad, ['Good <b>title</b>']], [[], []]]) {
+    const ctx = await browser.newContext(); const p = await ctx.newPage();
+    await p.route('**/data/projects.json', (r) => r.fulfill({ json: route(pulls) }));
+    await p.goto(base + '/?lang=en'); await p.waitForLoadState('networkidle');
+    const res = await p.evaluate(() => ({ hidden: document.getElementById('pr-wrap').hidden, titles: [...document.querySelectorAll('#pr-list li a')].map((a) => a.textContent), html: document.getElementById('pr-list').innerHTML }));
+    await ctx.close();
+    if (res.titles.join('|') !== expected.join('|')) throw new Error('titles: ' + res.titles);
+    if (res.hidden !== (expected.length === 0)) throw new Error('hidden state ' + res.hidden);
+    if (/<b>/.test(res.html)) throw new Error('title rendered as HTML');
+  }
+});
 await test('Profile links: LinkedIn, GitHub, Credly exact and safe; no mail links', async () => {
   const p = await newPage();
   const links = await p.$$eval('a[href]', (a) => a.map((x) => ({ h: x.getAttribute('href'), t: x.target, r: x.rel })));
@@ -260,9 +303,9 @@ await test('Profile links: LinkedIn, GitHub, Credly exact and safe; no mail link
 
 await test('Employer descriptions and LinkedIn/GitHub line in en/de/tr', async () => {
   const want = {
-    en: { org: 'retail and information technology', more: 'More about my career and projects:' },
-    de: { org: 'Einzelhandels- und Informationstechnologiesektor', more: 'Mehr zu meinem Werdegang' },
-    tr: { org: 'Perakende ve bilgi teknolojileri', more: 'Kariyerim ve projelerim' },
+    en: { org: 'retail and information technology', more: 'Based on my public LinkedIn and GitHub profiles.' },
+    de: { org: 'Einzelhandels- und Informationstechnologiesektor', more: 'Basierend auf meinen öffentlichen LinkedIn- und GitHub-Profilen.' },
+    tr: { org: 'Perakende ve bilgi teknolojileri', more: 'Herkese açık LinkedIn ve GitHub profillerime dayanmaktadır.' },
   };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: `/?lang=${lang}` });
@@ -272,7 +315,7 @@ await test('Employer descriptions and LinkedIn/GitHub line in en/de/tr', async (
     await p.context().close();
     if (!exp.includes(want[lang].org)) throw new Error(`${lang}: employer description missing`);
     if (!exp.includes(want[lang].more)) throw new Error(`${lang}: more-line missing`);
-    if (!links.includes('https://www.linkedin.com/in/ondernuray/') || !links.includes('https://github.com/ondern')) throw new Error(`${lang}: LinkedIn/GitHub links missing in experience`);
+    if (links.length) throw new Error(`${lang}: the experience line must not contain links`);
     const priv = findPrivate(body); if (priv && priv.length) throw new Error(`${lang}: private word visible: ${priv}`);
     if (/B1 zertifiziert|B1 sertifikalı|B1 certified/i.test(body)) throw new Error(`${lang}: B1 must not be described as certified`);
   }
@@ -356,58 +399,273 @@ await test('About: 17+ years heading and three paragraphs in en/de/tr, anonymous
   }
 });
 
-await test('Contact form: visible but inactive in en/de/tr (disabled controls, notice, no action, no request, no storage)', async () => {
-  const words = { en: ['not active yet', 'Send message', 'Name'], de: ['noch nicht aktiv', 'Nachricht senden', 'Name'], tr: ['henüz etkin değil', 'Mesajı gönder', 'Ad'] };
+// Contact form tests. Turnstile and the Worker API are mocked: these tests do NOT prove real email delivery.
+const TS_URL = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+const API_URL = 'https://api.nuray.io/contact';
+const FAKE_TURNSTILE = `window.__ts = { renders: 0, resets: 0, removes: 0, opts: null };
+window.turnstile = { render: (el, o) => { window.__ts.renders++; window.__ts.opts = o; setTimeout(() => o.callback('mock-token-' + window.__ts.renders), 30); return 'w' + window.__ts.renders; },
+  reset: () => { window.__ts.resets++; setTimeout(() => window.__ts.opts.callback('mock-token-r' + window.__ts.resets), 30); }, remove: () => { window.__ts.removes++; } };`;
+const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' };
+async function contactPage(lang, api, { configured = true } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const p = await ctx.newPage();
+  p.problems = []; p.apiCalls = []; p.hosts = new Set(); p.tsLoaded = 0;
+  p.on('console', (m) => { if (/Content Security Policy|Refused/i.test(m.text())) p.problems.push(m.text()); });
+  p.on('pageerror', (e) => p.problems.push(String(e)));
+  p.on('request', (r) => { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol)) p.hosts.add(u.host); });
+  await p.route('**/js/config.js', async (r) => { const res = await r.fetch(); r.fulfill({ response: res, body: (await res.text()).replace(/const PRODUCTION_TURNSTILE_SITE_KEY = '[^']*';/, `const PRODUCTION_TURNSTILE_SITE_KEY = '${configured ? 'test-site-key' : 'REPLACE_WITH_TURNSTILE_SITE_KEY'}';`) }); });
+  await p.route(TS_URL + '*', (r) => { p.tsLoaded++; r.fulfill({ contentType: 'text/javascript', body: FAKE_TURNSTILE }); });
+  await p.route(API_URL, async (r) => {
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
+    p.apiCalls.push({ headers: r.request().headers(), body: JSON.parse(r.request().postData() || '{}') });
+    await api(r);
+  });
+  await p.goto(base + '/?lang=' + lang);
+  await p.waitForLoadState('networkidle');
+  return p;
+}
+const okApi = (r) => r.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: '{"ok":true}' });
+const errApi = (status, code, extra = {}) => (r) => r.fulfill({ status, headers: CORS, contentType: 'application/json', body: JSON.stringify({ ok: false, code, ...extra }) });
+async function fillForm(p, over = {}) {
+  await p.fill('#cf-name', over.name ?? 'Ada Lovelace');
+  await p.fill('#cf-email', over.email ?? 'ada@example.org');
+  await p.fill('#cf-subject', over.subject ?? 'Hello');
+  await p.fill('#cf-message', over.message ?? 'A short test message.');
+}
+const PRIVACY = {
+  en: 'Contact form messages are processed through Cloudflare and Resend for bot protection and email delivery. Please do not submit sensitive personal information.',
+  de: 'Nachrichten über das Kontaktformular werden zum Schutz vor Bots und zur E-Mail-Zustellung über Cloudflare und Resend verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten.',
+  tr: 'İletişim formu mesajları, botlara karşı koruma ve e-posta iletimi amacıyla Cloudflare ve Resend hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin.',
+};
+const SUCCESS = { en: 'Your message has been sent', de: 'Ihre Nachricht wurde gesendet', tr: 'Mesajınız gönderildi' };
+await test('Contact form: active in en/de/tr with the approved disclosure; nothing contacted or stored before interaction', async () => {
+  const words = { en: ['Send message', 'Name'], de: ['Nachricht senden', 'Name'], tr: ['Mesajı gönder', 'Ad'] };
   for (const lang of ['en', 'de', 'tr']) {
-    const p = await newPage({ path: '/?lang=' + lang });
-    const post = []; p.on('request', (r) => post.push(r.method() + ' ' + r.url()));
+    const p = await contactPage(lang, okApi);
     const info = await p.evaluate(() => {
       const f = document.getElementById('contact-form');
-      return { exists: !!f && !!f.closest('#contact'), action: f?.getAttribute('action'), method: f?.getAttribute('method'),
-        submitDisabled: document.getElementById('cf-submit')?.disabled, fieldsetDisabled: !!f?.querySelector('fieldset')?.disabled,
-        controls: [...f.querySelectorAll('input, textarea, select, button')].map((c) => ({ id: c.id, disabled: c.matches(':disabled') })),
+      return { inSection: !!f.closest('#contact'), action: f.getAttribute('action'), method: f.getAttribute('method'),
+        disabled: [...f.querySelectorAll('input, textarea, button')].filter((c) => c.matches(':disabled')).length,
         labels: [...f.querySelectorAll('label')].map((l) => l.textContent.trim()), submitText: document.getElementById('cf-submit').textContent.trim(),
-        notice: document.getElementById('form-inactive')?.textContent.trim(), noticeVisible: !!document.getElementById('form-inactive')?.offsetParent,
-        honeypot: !!f.querySelector('[name=_gotcha]'), hidden: [...f.querySelectorAll('input[type=hidden]')].length };
+        privacy: document.getElementById('form-privacy').textContent.trim(), hp: { aria: document.querySelector('.hp').getAttribute('aria-hidden'), tab: document.getElementById('cf-website').tabIndex, rect: document.getElementById('cf-website').getBoundingClientRect().right },
+        live: document.getElementById('cf-status').getAttribute('role'), footer: document.querySelector('footer .footer-notice').textContent,
+        storage: { local: Object.keys(localStorage), session: Object.keys(sessionStorage), cookie: document.cookie } };
     });
-    if (!info.exists) throw new Error(lang + ': form missing');
-    if (info.action || info.method) throw new Error(lang + ': form has action/method');
-    if (!info.submitDisabled || !info.fieldsetDisabled) throw new Error(lang + ': submit/fieldset not disabled');
-    if (info.controls.length !== 5 || info.controls.some((c) => !c.disabled)) throw new Error(lang + ': enabled control: ' + JSON.stringify(info.controls));
-    if (!info.noticeVisible || !info.notice.includes(words[lang][0])) throw new Error(lang + ': inactive notice missing: ' + info.notice);
-    if (!/(transmitted|übermittelt|iletilmez)/.test(info.notice)) throw new Error(lang + ': notice must say nothing is transmitted');
-    if (info.submitText !== words[lang][1] || info.labels[0] !== words[lang][2]) throw new Error(lang + ': labels not localized: ' + info.submitText + ' / ' + info.labels);
-    if (info.honeypot || info.hidden) throw new Error(lang + ': unexpected hidden/honeypot field');
-    // try every way to submit
-    await p.locator('#cf-submit').click({ force: true, timeout: 2000 }).catch(() => {});
-    await p.locator('#cf-message').focus({ timeout: 1000 }).catch(() => {});
-    await p.keyboard.press('Enter');
-    const editable = await p.locator('#cf-message').isEditable();
-    const fillFailed = await p.fill('#cf-message', 'x', { timeout: 1500 }).then(() => false, () => true);
-    const subEvent = await p.evaluate(() => { let n = 0; const f = document.getElementById('contact-form'); f.addEventListener('submit', () => n++); f.requestSubmit(); return { defaultPrevented: n };});
-    await p.evaluate(() => document.getElementById('contact-form').submit());
-    await p.waitForTimeout(500);
-    const url = p.url();
-    const keys = await p.evaluate(() => ({ local: Object.keys(localStorage), session: Object.keys(sessionStorage), cookie: document.cookie, value: document.getElementById('cf-message').value }));
-    const html = await p.content();
+    const hosts = [...p.hosts]; const ts = p.tsLoaded; const api = p.apiCalls.length; const probs = p.problems; const html = await p.content();
     await p.context().close();
-    if (editable || !fillFailed) throw new Error(lang + ': message field accepts input');
-    if (post.length) throw new Error(lang + ': requests after load: ' + post.join(' | '));
-    if (url.includes('?') && !url.includes('lang=')) throw new Error(lang + ': navigated: ' + url);
-    if (/#?[?&](name|email|message|subject)=/i.test(url)) throw new Error(lang + ': form data in URL');
-    if (keys.local.some((k) => !['lang', 'theme'].includes(k)) || keys.session.length || keys.cookie || keys.value) throw new Error(lang + ': storage/value: ' + JSON.stringify(keys));
-    if (/[\w.+-]+@(?!example\.)[\w-]+\.[\w.-]+/i.test(html)) throw new Error(lang + ': email address in rendered page');
+    if (!info.inSection || info.action || info.method) throw new Error(lang + ': form structure');
+    if (info.disabled) throw new Error(lang + ': disabled controls');
+    if (info.submitText !== words[lang][0] || info.labels[0] !== words[lang][1]) throw new Error(lang + ': labels not localized');
+    if (info.privacy !== PRIVACY[lang]) throw new Error(lang + ': disclosure differs: ' + info.privacy);
+    if (!info.footer.includes(PRIVACY[lang])) throw new Error(lang + ': footer lacks disclosure');
+    if (info.hp.aria !== 'true' || info.hp.tab !== -1 || info.hp.rect > 0) throw new Error(lang + ': honeypot not hidden: ' + JSON.stringify(info.hp));
+    if (info.live !== 'status') throw new Error(lang + ': status region missing');
+    if (ts || api || hosts.some((h) => h !== new URL(base).host)) throw new Error(lang + ': third-party/API contact before interaction: ' + hosts);
+    if (info.storage.local.some((k) => !['lang', 'theme'].includes(k)) || info.storage.session.length || info.storage.cookie) throw new Error(lang + ': storage used');
+    if (probs.length) throw new Error(lang + ': CSP/console: ' + probs.join('|'));
+    if (/[\w.+-]+@(?!example\.)[\w-]+\.[\w.-]+|mailto:/i.test(html)) throw new Error(lang + ': address in page');
   }
-  // no endpoint, provider or submission logic anywhere in the source
-  const files = ['index.html', 'css/styles.css', 'js/app.js', 'js/config.js', 'js/ui.js', 'js/i18n.js', 'js/credentials.js', 'js/github.js', 'i18n/en.json', 'i18n/de.json', 'i18n/tr.json'];
-  for (const f of files) {
-    const t = readFileSync(f, 'utf8');
-    if (/formspree|FORM_ENDPOINT|FORM_LIMITS|_gotcha|initContact|\bfetch\(\s*['"`]https?:|XMLHttpRequest|sendBeacon/i.test(t)) throw new Error('submission remnant in ' + f);
-  }
-  if (existsSync('js/contact.js')) throw new Error('js/contact.js exists');
-  if (!/form-action 'none'/.test(readFileSync('index.html', 'utf8'))) throw new Error('CSP form-action none missing');
 });
-
+await test('Contact form: mocked successful submit (en/de/tr): Turnstile loads on interaction, JSON payload, success message, form reset', async () => {
+  for (const lang of ['en', 'de', 'tr']) {
+    const p = await contactPage(lang, okApi);
+    await p.focus('#cf-name');
+    await p.waitForFunction(() => window.__ts && window.__ts.renders === 1);
+    const opts = await p.evaluate(() => ({ sitekey: window.__ts.opts.sitekey, language: window.__ts.opts.language }));
+    if (opts.sitekey !== 'test-site-key' || opts.language !== lang) throw new Error(lang + ': widget options ' + JSON.stringify(opts));
+    await fillForm(p);
+    await p.waitForTimeout(3300); // the Worker enforces a minimum fill time
+    await p.click('#cf-submit');
+    await p.waitForFunction((w) => document.getElementById('cf-status').textContent.includes(w), SUCCESS[lang]);
+    const after = await p.evaluate(() => ({ name: document.getElementById('cf-name').value, message: document.getElementById('cf-message').value, kind: document.getElementById('cf-status').dataset.kind, resets: window.__ts.resets, btn: document.getElementById('cf-submit').textContent.trim(), busy: document.getElementById('contact-form').getAttribute('aria-busy'), disabled: document.querySelector('#contact-form fieldset').disabled }));
+    const calls = p.apiCalls; const probs = p.problems; await p.context().close();
+    if (calls.length !== 1) throw new Error(lang + ': api calls ' + calls.length);
+    const b = calls[0].body;
+    if (!/^application\/json/.test(calls[0].headers['content-type'])) throw new Error('not JSON');
+    if (b.name !== 'Ada Lovelace' || b.email !== 'ada@example.org' || b.subject !== 'Hello' || b.message !== 'A short test message.' || b.lang !== lang || b.token !== 'mock-token-1' || b.website !== '') throw new Error(lang + ': payload ' + JSON.stringify(b));
+    if (!(Date.now() - b.startedAt >= 3000) || 'idempotencyKey' in b) throw new Error(lang + ': startedAt / unexpected key');
+    if (after.name || after.message || after.kind !== 'success' || after.resets < 1 || after.busy !== 'false' || after.disabled) throw new Error(lang + ': state after success ' + JSON.stringify(after));
+    if (probs.length) throw new Error(lang + ': CSP/console: ' + probs.join('|'));
+  }
+});
+await test('Contact form: client validation, server error codes and network failure show translated messages; language change re-translates', async () => {
+  const p = await contactPage('en', errApi(429, 'rate_limited'));
+  await p.click('#cf-submit');
+  if (p.apiCalls.length) throw new Error('invalid form was sent');
+  if (!/enter your name/.test(await p.textContent('#cf-status'))) throw new Error('name error missing');
+  if ((await p.getAttribute('#cf-name', 'aria-invalid')) !== 'true' || !(await p.evaluate(() => document.activeElement.id === 'cf-name'))) throw new Error('invalid field not marked/focused');
+  await fillForm(p, { email: 'broken' });
+  await p.click('#cf-submit');
+  if (!/valid email/.test(await p.textContent('#cf-status'))) throw new Error('email error missing');
+  await fillForm(p);
+  await p.click('#cf-submit');
+  await p.waitForFunction(() => /Too many attempts/.test(document.getElementById('cf-status').textContent));
+  if ((await p.inputValue('#cf-message')) !== 'A short test message.') throw new Error('input lost after error');
+  await p.selectOption('#lang-select', 'de');
+  await p.waitForFunction(() => /Zu viele Versuche/.test(document.getElementById('cf-status').textContent));
+  const removes = await p.evaluate(() => window.__ts.removes);
+  if (removes < 1) throw new Error('widget not re-rendered after language change');
+  await p.selectOption('#lang-select', 'tr');
+  await p.waitForFunction(() => /Çok fazla deneme/.test(document.getElementById('cf-status').textContent));
+  const codes = [[400, 'captcha_failed', /Sicherheitsprüfung ist fehlgeschlagen|security check failed|doğrulaması başarısız/], [502, 'server_error', /gönderilemedi/], [409, 'in_progress', /zaten gönderiliyor/]];
+  await p.unroute(API_URL);
+  for (const [status, code, re] of codes) {
+    await p.route(API_URL, async (r) => { if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS }); await errApi(status, code)(r); });
+    await p.click('#cf-submit');
+    await p.waitForFunction(() => document.getElementById('cf-status').textContent.length > 0 && !document.querySelector('#contact-form fieldset').disabled);
+    const txt = await p.textContent('#cf-status');
+    if (!re.test(txt)) throw new Error(code + ': ' + txt);
+    await p.unroute(API_URL);
+  }
+  await p.route(API_URL, (r) => (r.request().method() === 'OPTIONS' ? r.fulfill({ status: 204, headers: CORS }) : r.abort()));
+  await p.click('#cf-submit');
+  await p.waitForFunction(() => /Bağlantı kurulamadı/.test(document.getElementById('cf-status').textContent));
+  await p.context().close();
+});
+await test('Contact form: placeholder site key shows "unavailable" and sends nothing; failed Turnstile load shows a message', async () => {
+  let p = await contactPage('en', okApi, { configured: false });
+  await fillForm(p);
+  await p.click('#cf-submit');
+  if (!/not available right now/.test(await p.textContent('#cf-status'))) throw new Error('unavailable message missing');
+  if (p.apiCalls.length || p.tsLoaded) throw new Error('request made with placeholder key');
+  await p.context().close();
+  p = await contactPage('en', okApi);
+  await p.unroute(TS_URL + '*');
+  await p.route(TS_URL + '*', (r) => r.abort());
+  await fillForm(p);
+  await p.click('#cf-submit');
+  await p.waitForFunction(() => /security check could not be loaded/.test(document.getElementById('cf-status').textContent));
+  if (p.apiCalls.length) throw new Error('request without Turnstile');
+  await p.context().close();
+});
+await test('Contact form source: public values only, no secrets, no recipient, CSP allows only Turnstile and the API host', async () => {
+  const cfg = readFileSync('js/config.js', 'utf8');
+  if (!/PRODUCTION_CONTACT_API_URL = 'https:\/\/api\.nuray\.io\/contact'/.test(cfg) || !/TURNSTILE_SITE_KEY/.test(cfg)) throw new Error('config constants missing');
+  for (const f of ['index.html', 'js/config.js', 'js/contact.js', 'js/app.js', 'i18n/en.json', 'i18n/de.json', 'i18n/tr.json', 'README.md']) {
+    const t = readFileSync(f, 'utf8');
+    if (/RESEND_API_KEY|TURNSTILE_SECRET|re_[A-Za-z0-9]{16,}|CONTACT_RECIPIENT|mailto:/.test(t)) throw new Error('secret name/value or mail link in ' + f);
+  }
+  const csp = readFileSync('index.html', 'utf8').match(/Content-Security-Policy" content="([^"]+)"/)[1];
+  const want = ["default-src 'none'", "script-src 'self' https://challenges.cloudflare.com", "style-src 'self'", "connect-src 'self' https://api.nuray.io", 'frame-src https://challenges.cloudflare.com', "form-action 'none'", "base-uri 'self'"];
+  for (const d of want) if (!csp.includes(d)) throw new Error('CSP missing: ' + d);
+  if (/unsafe-/.test(csp) || csp.includes('*')) throw new Error('CSP too loose');
+  if (/<script[^>]+src="https?:/.test(readFileSync('index.html', 'utf8'))) throw new Error('static third-party script');
+});
+await test('Contact config: production values by default; local mode only on localhost with ?contactDev=1, never on nuray.io', async () => {
+  const load = async (hostname, search, n) => { globalThis.location = { hostname, search }; return import(pathToFileURL(join(ROOT, 'js/config.js')).href + '?case=' + n); };
+  const prodKey = readFileSync('js/config.js', 'utf8').match(/const PRODUCTION_TURNSTILE_SITE_KEY = '([^']+)'/)[1];
+  if (prodKey === '1x00000000000000000000AA') throw new Error('the Cloudflare test key must never be the production key');
+  const prod = await load('nuray.io', '', 1);
+  const spoof = await load('nuray.io', '?contactDev=1', 2);
+  const www = await load('www.nuray.io', '?contactDev=1&contactApi=https://evil.example', 3);
+  const localDefault = await load('localhost', '', 4);
+  const localDev = await load('localhost', '?contactDev=1', 5);
+  const lookalike = await load('localhost.evil.example', '?contactDev=1', 6);
+  delete globalThis.location;
+  for (const c of [prod, spoof, www, localDefault, lookalike]) {
+    if (c.CONTACT_LOCAL_DEV || c.CONTACT_API_URL !== 'https://api.nuray.io/contact' || c.TURNSTILE_SITE_KEY !== prodKey) throw new Error('production config changed unexpectedly');
+  }
+  if (!localDev.CONTACT_LOCAL_DEV || localDev.CONTACT_API_URL !== 'http://localhost:8787/contact') throw new Error('local mode not available');
+  if (localDev.TURNSTILE_SITE_KEY !== '1x00000000000000000000AA') throw new Error('local mode must use only the public Turnstile test key');
+  if (/localhost/.test(readFileSync('index.html', 'utf8').match(/Content-Security-Policy" content="([^"]+)"/)[1])) throw new Error('production CSP mentions localhost');
+});
+await test('Contact local dev harness: real Worker code, mocked Turnstile/Resend; browser flow works over real HTTP with CORS', async () => {
+  const child = spawn(process.execPath, ['tests/contact-dev.mjs'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+  let out = ''; child.stdout.on('data', (d) => { out += d; }); child.stderr.on('data', (d) => { out += d; });
+  try {
+    for (let i = 0; i < 50 && !out.includes('Local mock API'); i++) await new Promise((r) => setTimeout(r, 100));
+    if (!out.includes('Local mock API')) throw new Error('harness did not start (ports 4173/8787 busy?): ' + out.slice(0, 200));
+    const ctx = await browser.newContext(); const p = await ctx.newPage();
+    const problems = []; p.on('console', (m) => { if (/Content Security Policy|Refused/i.test(m.text())) problems.push(m.text()); });
+    await p.route('https://challenges.cloudflare.com/**', (r) => r.fulfill({ contentType: 'text/javascript', body: FAKE_TURNSTILE }));
+    await p.goto('http://localhost:4173/?contactDev=1&lang=en');
+    await p.focus('#cf-name'); await fillForm(p);
+    await p.waitForTimeout(3300);
+    const resp = p.waitForResponse((r) => r.url() === 'http://localhost:8787/contact' && r.request().method() === 'POST');
+    await p.click('#cf-submit');
+    const r = await resp;
+    await p.waitForFunction(() => /Your message has been sent/.test(document.getElementById('cf-status').textContent));
+    await ctx.close();
+    if (r.status() !== 200 || r.headers()['x-contact-dev-mock'] !== '1') throw new Error('unexpected API response ' + r.status());
+    if (problems.length) throw new Error('CSP: ' + problems.join('|'));
+    if (!/MOCK\] Resend: would send the owner notification/.test(out) || !/acknowledgment/.test(out)) throw new Error('mock mail log missing');
+  } finally { child.kill(); }
+  return 'mocked Turnstile/Resend only: no real verification or email';
+});
+await test('Typography: Google Sans loads locally in en/de/tr (Turkish letters via latin-ext), body 16-18px, line-height 1.5-1.7, readable line length', async () => {
+  for (const lang of ['en', 'de', 'tr']) {
+    const p = await newPage({ path: '/?lang=' + lang });
+    const info = await p.evaluate(async () => {
+      await document.fonts.ready;
+      const b = getComputedStyle(document.body); const fs = parseFloat(b.fontSize);
+      const para = document.querySelector('#about .reveal p'); const cs = getComputedStyle(para); const ctx2 = document.createElement('canvas').getContext('2d'); ctx2.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+      const avg = ctx2.measureText(para.textContent).width / para.textContent.length;
+      return { family: b.fontFamily, fs, lh: parseFloat(b.lineHeight) / fs, weight: b.fontWeight,
+        loaded: [...document.fonts].filter((f) => f.family.replace(/"/g, '') === 'Google Sans' && f.status === 'loaded').length,
+        check: document.fonts.check('400 16px "Google Sans"', document.documentElement.lang === 'tr' ? 'ÖöÜüÇçĞğİıŞş' : 'ÖöÜüß'), bold: document.fonts.check('700 16px "Google Sans"', 'Aa'),
+        cpl: para.getBoundingClientRect().width / avg, width: para.getBoundingClientRect().width };
+    });
+    const hosts = [...p.hosts].filter((h) => h !== new URL(base).host); await p.context().close();
+    if (!/^"?Google Sans"?, "?Inter"?, "?Source Sans 3"?, Arial, Helvetica, sans-serif$/.test(info.family)) throw new Error(lang + ': font stack ' + info.family);
+    if (info.fs < 16 || info.fs > 18) throw new Error(lang + ': body size ' + info.fs);
+    if (info.lh < 1.5 || info.lh > 1.7) throw new Error(lang + ': line-height ' + info.lh);
+    if (+info.weight < 400 || +info.weight > 500) throw new Error(lang + ': body weight ' + info.weight);
+    if (!info.loaded || !info.check || !info.bold) throw new Error(lang + ': Google Sans not loaded ' + JSON.stringify(info));
+    if (lang === 'tr' && info.loaded < 2) throw new Error('tr: latin-ext subset not loaded');
+    if (info.cpl < 60 || info.cpl > 80) throw new Error(lang + ': characters per line ' + Math.round(info.cpl));
+    if (hosts.length) throw new Error(lang + ': external font hosts ' + hosts);
+  }
+});
+await test('Typography: if the font files fail to load, text stays visible, layout height stays within 5% and nothing overflows (320 and 1280 px, en/de/tr)', async () => {
+  for (const lang of ['en', 'de', 'tr']) for (const width of [320, 1280]) {
+    const measure = async (blockFonts) => {
+      const ctx = await browser.newContext({ viewport: { width, height: 800 }, reducedMotion: 'reduce' }); const p = await ctx.newPage();
+      if (blockFonts) await p.route('**/assets/fonts/**', (r) => r.abort());
+      await p.goto(base + '/?lang=' + lang); await p.waitForLoadState('networkidle');
+      const m = await p.evaluate(() => ({ h: document.documentElement.scrollHeight, over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        loaded: [...document.fonts].some((f) => f.family.replace(/"/g, '') === 'Google Sans' && f.status === 'loaded'),
+        heading: document.querySelector('#hero-title').getBoundingClientRect().height, family: getComputedStyle(document.body).fontFamily }));
+      await ctx.close(); return m;
+    };
+    const [ok, blocked] = [await measure(false), await measure(true)];
+    if (blocked.loaded) throw new Error('font was not blocked');
+    if (blocked.over > 0 || ok.over > 0) throw new Error(lang + ' ' + width + ': horizontal overflow ' + blocked.over);
+    if (blocked.heading < 20) throw new Error(lang + ' ' + width + ': heading collapsed without the font');
+    if (!/Arial/.test(blocked.family) || !/Inter/.test(blocked.family)) throw new Error('fallback stack incomplete');
+    const diff = Math.abs(ok.h - blocked.h) / ok.h;
+    if (diff > 0.05) throw new Error(lang + ' ' + width + ': page height differs ' + (diff * 100).toFixed(1) + '%');
+  }
+});
+await test('Text enlargement: root font size 200% causes no horizontal overflow or clipped headings/buttons (en/de/tr; 640 px = a 1280 px window at 200%, and 390 px phone)', async () => {
+  for (const lang of ['en', 'de', 'tr']) for (const width of [640, 390]) {
+    const p = await newPage({ path: '/?lang=' + lang, viewport: { width, height: 800 } });
+    await p.evaluate(() => document.documentElement.style.setProperty('font-size', '200%', 'important'));
+    await p.waitForTimeout(150);
+    const r = await p.evaluate(() => ({ over: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      clipped: [...document.querySelectorAll('h1, h2, h3, .btn, label, #cf-submit')].filter((e) => e.offsetParent && !e.classList.contains('visually-hidden') && e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow !== 'visible').map((e) => e.id || e.className || e.tagName),
+      fs: parseFloat(getComputedStyle(document.body).fontSize) }));
+    await p.context().close();
+    if (r.fs < 30) throw new Error('root font size not enlarged: ' + r.fs);
+    if (r.over > 0) throw new Error(lang + ' ' + width + ': horizontal overflow ' + r.over + 'px');
+    if (r.clipped.length) throw new Error(lang + ' ' + width + ': clipped ' + r.clipped);
+  }
+});await test('Target size: every visible button, select, input, textarea, icon link and nav link is at least 24x24 CSS px (desktop and mobile)', async () => {
+  for (const [w, h] of [[1280, 800], [390, 800]]) {
+    const p = await newPage({ viewport: { width: w, height: h } });
+    const small = await p.evaluate(() => [...document.querySelectorAll('button, select, input:not([type=hidden]), textarea, .btn, .icon-link, .primary-nav a, summary')]
+      .filter((e) => e.offsetParent !== null && !e.closest('.hp') && !e.closest('[hidden]'))
+      .map((e) => ({ n: (e.id || e.className || e.tagName) + '', r: e.getBoundingClientRect() })).filter((x) => x.r.width > 0 && (x.r.width < 24 || x.r.height < 24)).map((x) => x.n + ' ' + Math.round(x.r.width) + 'x' + Math.round(x.r.height)));
+    await p.context().close();
+    if (small.length) throw new Error(w + 'px: ' + small.join(', '));
+  }
+});
+await test('Forced colours (Windows High Contrast): buttons, icon links and tags keep a visible border', async () => {
+  const ctx = await browser.newContext({ forcedColors: 'active', viewport: { width: 1280, height: 800 } }); const p = await ctx.newPage();
+  await p.goto(base + '/'); await p.waitForLoadState('networkidle');
+  const res = await p.evaluate(() => ['.btn-secondary', '.icon-link', '.icon-btn', '.btn-primary'].map((s) => { const e = document.querySelector(s); const c = getComputedStyle(e); return [s, c.borderTopWidth, c.borderTopStyle]; }));
+  await ctx.close();
+  for (const [s, wd, st] of res) if (wd === '0px' || st === 'none') throw new Error(s + ' has no border in forced-colours mode');
+});
 await test('Navigation: "Education & Certificates" label in en/de/tr (desktop and mobile), anchors and sections intact', async () => {
   const want = {
     en: ['About', 'Experience', 'Education', 'Skills', 'Education & Certificates', 'Projects', 'Contact'],
@@ -476,7 +734,7 @@ await test('Education: logos match universities, LinkedIn + official links, loca
 });
 
 await test('Skill chips: 21 unique compact chips per language, German/Turkish labels, not interactive', async () => {
-  const sample = { en: 'Network Engineering', de: 'Netzwerkengineering', tr: 'Ağ Mühendisliği' };
+  const sample = { en: 'Network Engineering', de: 'Netzwerk-Engineering', tr: 'Ağ Mühendisliği' };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: `/?lang=${lang}` });
     const chips = await p.$$eval('#skills .chips.compact li', (n) => n.map((x) => x.textContent.trim()));
@@ -577,8 +835,8 @@ await test('Keyboard: skip link is first tab stop', async () => {
   await p.context().close();
 });
 
-await test('Footer notice: exact text in en/de/tr (states the contact form is inactive), no legal page or legal links, legal.html is gone', async () => {
-  const want = {"en":"This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. The contact form is currently inactive and does not submit or transmit any data. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.","de":"Diese Website ist mein persönlicher Online-Lebenslauf und mein Portfolio. Sie verwendet keine Benutzerkonten, Analyse- oder Werbedienste. Das Kontaktformular ist derzeit inaktiv und übermittelt keine Daten. Sprach- und Designeinstellungen werden in Ihrem Browser gespeichert. Die Website wird über GitHub Pages gehostet; der Hosting-Anbieter kann technische Zugriffsdaten verarbeiten. Externe Links führen zu Websites Dritter.","tr":"Bu site kişisel çevrim içi CV ve portföyümdür. Kullanıcı hesabı, analiz veya reklam hizmeti kullanmaz. İletişim formu şu anda etkin değildir ve herhangi bir veri göndermez veya iletmez. Dil ve tema tercihleri tarayıcınızda saklanır. Site GitHub Pages üzerinde barındırılır; barındırma sağlayıcısı teknik istek verilerini işleyebilir. Dış bağlantılar ilgili hizmetlerin kendi sitelerine yönlendirir."};
+await test('Footer notice: exact text in en/de/tr (includes the contact-form processing disclosure), no legal page or legal links, legal.html is gone', async () => {
+  const want = {"en":"This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. Contact form messages are processed through Cloudflare and Resend for bot protection and email delivery. Please do not submit sensitive personal information. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.","de":"Diese Website ist mein persönlicher Online-Lebenslauf und mein Portfolio. Sie verwendet keine Benutzerkonten, Analyse- oder Werbedienste. Nachrichten über das Kontaktformular werden zum Schutz vor Bots und zur E-Mail-Zustellung über Cloudflare und Resend verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten. Sprach- und Designeinstellungen werden in Ihrem Browser gespeichert. Die Website wird über GitHub Pages gehostet; der Hosting-Anbieter kann technische Zugriffsdaten verarbeiten. Externe Links führen zu Websites Dritter.","tr":"Bu site kişisel çevrim içi CV ve portföyümdür. Kullanıcı hesabı, analiz veya reklam hizmeti kullanmaz. İletişim formu mesajları, botlara karşı koruma ve e-posta iletimi amacıyla Cloudflare ve Resend hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin. Dil ve tema tercihleri tarayıcınızda saklanır. Site GitHub Pages üzerinde barındırılır; barındırma sağlayıcısı teknik istek verilerini işleyebilir. Dış bağlantılar ilgili hizmetlerin kendi sitelerine yönlendirir."};
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
     const d = await p.evaluate(() => ({ notice: document.querySelector('footer .footer-notice')?.textContent.trim(), links: [...document.querySelectorAll('a')].map((a) => a.getAttribute('href')), footerLinks: [...document.querySelectorAll('footer a')].map((a) => a.getAttribute('href')) }));

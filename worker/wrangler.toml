@@ -1,0 +1,24 @@
+# Cloudflare Worker for the nuray.io contact form. No secrets belong in this file.
+# Secrets are Worker Production secrets: RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_RECIPIENT.
+name = "nuray-contact-api"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# The Worker is reachable only through api.nuray.io; the workers.dev URL is disabled.
+workers_dev = false
+
+# Custom Domain: Cloudflare creates the DNS record and certificate when this is deployed.
+routes = [{ pattern = "api.nuray.io", custom_domain = true }]
+
+[vars]
+MAIL_FROM = "nuray.io <noreply@nuray.io>"
+# Optional override; the code defaults to nuray.io and www.nuray.io.
+TURNSTILE_HOSTNAMES = "nuray.io,www.nuray.io"
+
+# Per-location request limit per client IP (needs Wrangler 4.36 or newer).
+[[ratelimits]]
+name = "RATE_LIMITER"
+namespace_id = "1001"
+  [ratelimits.simple]
+  limit = 5
+  period = 60
