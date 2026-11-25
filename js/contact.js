@@ -23,10 +23,15 @@ export function initContact() {
   const slot = $('cf-turnstile');
   const state = { widgetId: null, token: '', scriptPromise: null, sending: false, startedAt: Date.now(), statusKey: null, waiters: [] };
 
+  const SUCCESS_VISIBLE_MS = 10000;
+  let statusTimer = null;
   function setStatus(key, kind = 'error') {
+    clearTimeout(statusTimer);
     state.statusKey = key;
     status.textContent = key ? t(key) : '';
     if (key) status.dataset.kind = kind; else delete status.dataset.kind;
+    // The confirmation is shown briefly and then removed; errors stay until the next attempt.
+    if (key && kind === 'success') statusTimer = setTimeout(() => setStatus(null), SUCCESS_VISIBLE_MS);
   }
   function markInvalid(field) {
     const el = $(FIELD_IDS[field]);
@@ -193,7 +198,8 @@ export function initContact() {
     io.observe(form);
   }
   document.addEventListener('languagechange', () => {
-    if (state.statusKey) status.textContent = t(state.statusKey);
+    if (status.dataset.kind === 'success') setStatus(null); // a stale confirmation is not re-translated
+    else if (state.statusKey) status.textContent = t(state.statusKey);
     submit.textContent = t(submit.dataset.i18n);
     if (state.widgetId !== null && window.turnstile && !state.sending) {
       window.turnstile.remove(state.widgetId);
