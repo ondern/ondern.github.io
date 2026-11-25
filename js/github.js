@@ -24,11 +24,14 @@ function projectCard(entry) {
   const bits = [up?.language ? t('proj.upstreamLang', { lang: up.language }) : null,
     entry.snapshot?.pushedAt ? t('proj.updated', { date: formatDate(entry.snapshot.pushedAt) }) : null].filter(Boolean);
   if (bits.length) card.append(node('p', { className: 'meta', textContent: bits.join(' · ') }));
+  // The fork line and the GitHub link sit in one footer that is pinned to the bottom of the card.
+  const foot = node('div', { className: 'proj-foot' });
   if (entry.fork && up && isGithubUrl(up.url)) {
-    card.append(node('p', { className: 'meta' }, document.createTextNode(`${t('proj.forkOf')} `),
+    foot.append(node('p', { className: 'meta' }, document.createTextNode(`${t('proj.forkOf')} `),
       node('a', { href: up.url, target: '_blank', rel: 'noopener', textContent: up.fullName })));
   }
-  card.append(node('a', { href: repoUrl(entry.name), target: '_blank', rel: 'noopener', textContent: t('proj.view') }));
+  foot.append(node('a', { href: repoUrl(entry.name), target: '_blank', rel: 'noopener', textContent: t('proj.view') }));
+  card.append(foot);
   return node('li', {}, card);
 }
 
