@@ -612,7 +612,8 @@ await test('Typography: Google Sans loads locally in en/de/tr (Turkish letters v
     if (+info.weight < 400 || +info.weight > 500) throw new Error(lang + ': body weight ' + info.weight);
     if (!info.loaded || !info.check || !info.bold) throw new Error(lang + ': Google Sans not loaded ' + JSON.stringify(info));
     if (lang === 'tr' && info.loaded < 2) throw new Error('tr: latin-ext subset not loaded');
-    if (info.cpl < 60 || info.cpl > 80) throw new Error(lang + ': characters per line ' + Math.round(info.cpl));
+    // Owner decision: section paragraphs span the full column so justified text lines up with the cards (about 82-93 characters per line, above the usual 65-75 guideline).
+    if (info.cpl < 60 || info.cpl > 96) throw new Error(lang + ': characters per line ' + Math.round(info.cpl));
     if (hosts.length) throw new Error(lang + ': external font hosts ' + hosts);
   }
 });
@@ -650,7 +651,7 @@ await test('Text enlargement: root font size 200% causes no horizontal overflow 
     if (r.clipped.length) throw new Error(lang + ' ' + width + ': clipped ' + r.clipped);
   }
 });
-await test('Justified paragraphs: body text is justified with hyphenation above 480 px and left-aligned on phones; short meta lines and narrow cards stay left-aligned; nothing overflows (en/de/tr, 320/390/1280 px)', async () => {
+await test('Justified paragraphs: body text is justified with hyphenation on phones, tablets and desktop; short meta lines and narrow cards stay left-aligned; nothing overflows (en/de/tr, 320/390/1280 px)', async () => {
   for (const lang of ['en', 'de', 'tr']) for (const width of [320, 390, 1280]) {
     const p = await newPage({ path: '/?lang=' + lang, viewport: { width, height: 900 } });
     const r = await p.evaluate(() => {
@@ -658,7 +659,7 @@ await test('Justified paragraphs: body text is justified with hyphenation above 
       return { about: al('#about .reveal p'), exp: al('#experience .card p:not(.meta)'), notice: al('footer .footer-notice'), meta: al('#experience .card .meta'), lang: al('.lang-card p'), over: document.documentElement.scrollWidth - document.documentElement.clientWidth };
     });
     await p.context().close();
-    const want = width <= 480 ? 'left/manual' : 'justify/auto';
+    const want = 'justify/auto';
     const bad = (arr, w) => arr.filter((x) => x !== w);
     if (!r.about.length || bad(r.about, want).length) throw new Error(lang + ' ' + width + ': About alignment wrong (expected ' + want + ') ' + r.about);
     if (!r.exp.length || bad(r.exp, want).length) throw new Error(lang + ' ' + width + ': experience text alignment wrong (expected ' + want + ') ' + r.exp);
@@ -684,15 +685,14 @@ await test('Chip lists are justified: every full row ends at the right edge of t
       if (l.rights.at(-1) > l.listRight + 1.5) throw new Error(lang + ' ' + width + ': last row sticks out');
     }
   }
-});await test('Header menu is centred on desktop (exact in en/tr, within 40 px in de), one row, no overflow; burger layout below 1200 px is unchanged', async () => {
+});await test('Header menu sits centred between logo and tools on desktop (equal gaps in en/de/tr), one row, no overflow; burger layout below 1200 px is unchanged', async () => {
   for (const lang of ['en', 'de', 'tr']) for (const width of [1201, 1280, 1440, 1920]) {
     const p = await newPage({ path: '/?lang=' + lang, viewport: { width, height: 700 } });
     const r = await p.evaluate(() => { const g = (s) => document.querySelector(s).getBoundingClientRect(); const nav = g('.primary-nav ul'); const br = g('.brand'); const tools = g('.header-tools'); const vw = document.documentElement.clientWidth;
-      return { off: (nav.left + nav.right) / 2 - vw / 2, h: g('.site-header').height, over: document.documentElement.scrollWidth - vw, order: br.right <= nav.left && nav.right <= tools.left }; });
+      return { gapL: nav.left - br.right, gapR: tools.left - nav.right, h: g('.site-header').height, over: document.documentElement.scrollWidth - vw }; });
     await p.context().close();
-    const tol = lang === 'de' ? 40 : 2;
-    if (Math.abs(r.off) > tol) throw new Error(lang + ' ' + width + ': menu is ' + r.off.toFixed(1) + ' px off centre');
-    if (r.h > 80 || r.over > 0 || !r.order) throw new Error(lang + ' ' + width + ': header wraps, overflows or overlaps ' + JSON.stringify(r));
+    if (Math.abs(r.gapL - r.gapR) > 2) throw new Error(lang + ' ' + width + ': gaps differ, logo-menu ' + r.gapL.toFixed(1) + ' px, menu-tools ' + r.gapR.toFixed(1) + ' px');
+    if (r.gapL < 12 || r.h > 80 || r.over > 0) throw new Error(lang + ' ' + width + ': header cramped, wraps or overflows ' + JSON.stringify(r));
   }
   const p = await newPage({ viewport: { width: 1100, height: 700 } });
   const burger = await p.evaluate(() => ({ btn: getComputedStyle(document.getElementById('menu-btn')).display, nav: getComputedStyle(document.getElementById('primary-nav')).display }));
@@ -885,7 +885,7 @@ await test('Keyboard: skip link is first tab stop', async () => {
 });
 
 await test('Footer notice: exact text in en/de/tr (includes the contact-form processing disclosure), no legal page or legal links, legal.html is gone', async () => {
-  const want = {"en":"This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. Contact form messages are processed through Cloudflare for bot protection and through Resend and Zoho for email delivery. Please do not submit sensitive personal information. I use your message and email address only to reply to you. They are kept for as long as needed for that purpose. To request access to or deletion of your data, please write to me through the contact form. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.","de":"Diese Website ist mein persönlicher Online-Lebenslauf und mein Portfolio. Sie verwendet keine Benutzerkonten, Analyse- oder Werbedienste. Nachrichten über das Kontaktformular werden zum Schutz vor Bots über Cloudflare und zur E-Mail-Zustellung über Resend und Zoho verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten. Ich verwende Ihre Nachricht und E-Mail-Adresse ausschließlich, um Ihnen zu antworten. Sie werden so lange gespeichert, wie es dafür erforderlich ist. Für eine Auskunft über Ihre Daten oder deren Löschung schreiben Sie mir bitte über das Kontaktformular. Sprach- und Designeinstellungen werden in Ihrem Browser gespeichert. Die Website wird über GitHub Pages gehostet; der Hosting-Anbieter kann technische Zugriffsdaten verarbeiten. Externe Links führen zu Websites Dritter.","tr":"Bu site kişisel çevrim içi CV ve portföyümdür. Kullanıcı hesabı, analiz veya reklam hizmeti kullanmaz. İletişim formu mesajları, botlara karşı koruma için Cloudflare, e-posta iletimi için Resend ve Zoho hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin. Mesajınızı ve e-posta adresinizi yalnızca size yanıt vermek için kullanırım. Bu amaç için gerekli olduğu sürece saklanır. Verilerinize erişim veya verilerinizin silinmesi talebi için lütfen iletişim formu üzerinden bana yazın. Dil ve tema tercihleri tarayıcınızda saklanır. Site GitHub Pages üzerinde barındırılır; barındırma sağlayıcısı teknik istek verilerini işleyebilir. Dış bağlantılar ilgili hizmetlerin kendi sitelerine yönlendirir."};
+  const want = {"en":"This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. Contact form messages are processed through Cloudflare for bot protection and through Resend and Zoho for email delivery. Please do not submit sensitive personal information. I use your message and email address only to reply to you. They may be kept for as long as needed for that purpose. If you would like your data deleted, you can contact me through the contact form. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.","de":"Diese Website ist mein persönlicher Online-Lebenslauf und mein Portfolio. Sie verwendet keine Benutzerkonten, Analyse- oder Werbedienste. Nachrichten über das Kontaktformular werden zum Schutz vor Bots über Cloudflare und zur E-Mail-Zustellung über Resend und Zoho verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten. Ich verwende Ihre Nachricht und E-Mail-Adresse ausschließlich, um Ihnen zu antworten. Sie können so lange gespeichert werden, wie es dafür erforderlich ist. Wenn Sie die Löschung Ihrer Daten wünschen, können Sie mich über das Kontaktformular kontaktieren. Sprach- und Designeinstellungen werden in Ihrem Browser gespeichert. Die Website wird über GitHub Pages gehostet; der Hosting-Anbieter kann technische Zugriffsdaten verarbeiten. Externe Links führen zu Websites Dritter.","tr":"Bu site kişisel çevrim içi CV ve portföyümdür. Kullanıcı hesabı, analiz veya reklam hizmeti kullanmaz. İletişim formu mesajları, botlara karşı koruma için Cloudflare, e-posta iletimi için Resend ve Zoho hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin. Mesajınızı ve e-posta adresinizi yalnızca size yanıt vermek için kullanabilirim. Bu amaç için gerekli olduğu sürece saklanabilir. Verilerinizin silinmesini isterseniz iletişim formu üzerinden benimle iletişime geçebilirsiniz. Dil ve tema tercihleri tarayıcınızda saklanır. Site GitHub Pages üzerinde barındırılır; barındırma sağlayıcısı teknik istek verilerini işleyebilir. Dış bağlantılar ilgili hizmetlerin kendi sitelerine yönlendirir."};
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
     const d = await p.evaluate(() => ({ notice: document.querySelector('footer .footer-notice')?.textContent.trim(), links: [...document.querySelectorAll('a')].map((a) => a.getAttribute('href')), footerLinks: [...document.querySelectorAll('footer a')].map((a) => a.getAttribute('href')) }));
