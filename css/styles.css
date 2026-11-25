@@ -83,6 +83,7 @@ main p { max-width: 50ch; } /* about 65-75 characters per line: ch is the width 
 :where(main p:not(.meta):not(.status)), .footer-notice, :where(.dialog p) { text-align: justify; text-justify: inter-word; hyphens: auto; }
 .lang-card p, .proj-card p { text-align: left; hyphens: manual; }
 .card p { max-width: none; } /* paragraphs fill the card, so justified text lines up with both padding edges */
+#experience .container > p, #credentials .reveal > p, #projects p.lead { max-width: none; }
 .timeline + .meta { margin-top: var(--sp-4); }
 a { color: var(--accent); text-underline-offset: .2em; }
 ul, ol { padding: 0; margin: 0; list-style: none; }
@@ -271,6 +272,12 @@ textarea.control { resize: vertical; }
   .hero-visual { max-width: 11.5rem; }
   .toolbar { grid-template-columns: 1fr; }
   .dialog dl { grid-template-columns: 1fr; }
+}
+/* Desktop header: logo left, menu in the middle, tools right. The two side columns are equal (1fr), so the menu sits at the exact centre of the page. German has the widest menu; there the tools column cannot shrink further and the menu sits about 27 px left of centre (the grid then keeps the gaps instead of overlapping). Below 75rem the burger layout above applies. */
+@media (min-width: 75.0625rem) {
+  .header-inner { display: grid; grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr); justify-content: space-between; align-items: center; }
+  .brand { margin-right: 0; justify-self: start; }
+  .header-tools { justify-self: end; }
 }
 /* Short landscape phones: tighten vertical rhythm */
 @media (max-height: 30rem) and (orientation: landscape) {

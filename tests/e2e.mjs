@@ -684,6 +684,20 @@ await test('Chip lists are justified: every full row ends at the right edge of t
       if (l.rights.at(-1) > l.listRight + 1.5) throw new Error(lang + ' ' + width + ': last row sticks out');
     }
   }
+});await test('Header menu is centred on desktop (exact in en/tr, within 40 px in de), one row, no overflow; burger layout below 1200 px is unchanged', async () => {
+  for (const lang of ['en', 'de', 'tr']) for (const width of [1201, 1280, 1440, 1920]) {
+    const p = await newPage({ path: '/?lang=' + lang, viewport: { width, height: 700 } });
+    const r = await p.evaluate(() => { const g = (s) => document.querySelector(s).getBoundingClientRect(); const nav = g('.primary-nav ul'); const br = g('.brand'); const tools = g('.header-tools'); const vw = document.documentElement.clientWidth;
+      return { off: (nav.left + nav.right) / 2 - vw / 2, h: g('.site-header').height, over: document.documentElement.scrollWidth - vw, order: br.right <= nav.left && nav.right <= tools.left }; });
+    await p.context().close();
+    const tol = lang === 'de' ? 40 : 2;
+    if (Math.abs(r.off) > tol) throw new Error(lang + ' ' + width + ': menu is ' + r.off.toFixed(1) + ' px off centre');
+    if (r.h > 80 || r.over > 0 || !r.order) throw new Error(lang + ' ' + width + ': header wraps, overflows or overlaps ' + JSON.stringify(r));
+  }
+  const p = await newPage({ viewport: { width: 1100, height: 700 } });
+  const burger = await p.evaluate(() => ({ btn: getComputedStyle(document.getElementById('menu-btn')).display, nav: getComputedStyle(document.getElementById('primary-nav')).display }));
+  await p.context().close();
+  if (burger.btn === 'none' || burger.nav !== 'none') throw new Error('burger layout changed at 1100 px: ' + JSON.stringify(burger));
 });await test('Target size: every visible button, select, input, textarea, icon link and nav link is at least 24x24 CSS px (desktop and mobile)', async () => {
   for (const [w, h] of [[1280, 800], [390, 800]]) {
     const p = await newPage({ viewport: { width: w, height: h } });
