@@ -3,7 +3,17 @@ import { CONTACT_API_URL, TURNSTILE_SITE_KEY } from './config.js';
 
 // Cloudflare Turnstile is loaded only when the visitor starts using the form (never on page load).
 const TURNSTILE_SRC = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-const LIMITS = { name: 100, email: 200, subject: 150, messageMin: 5, messageMax: 3000 };
+// Keep these content rules identical to worker/src/index.js (the server is authoritative).
+const LIMITS = { nameMin: 2, name: 80, email: 254, subject: 150, messageMin: 10, messageMax: 3000 };
+const NAME_RE = /^\p{L}[\p{L}\p{M} .'’-]*$/u;
+const LINK_RE = /(?:https?:\/\/|www\.)\S+/gi;
+const MAX_LINKS = 2;
+const MAX_REPEAT = 6;
+const MAX_WORD = 60;
+const hasRepeat = (s) => new RegExp('([^\\s])\\1{' + MAX_REPEAT + ',}', 'u').test(s);
+const nameOk = (s) => s.length >= LIMITS.nameMin && s.length <= LIMITS.name && NAME_RE.test(s) && !hasRepeat(s);
+const messageOk = (s) => s.length >= LIMITS.messageMin && s.length <= LIMITS.messageMax && !hasRepeat(s)
+  && (s.match(LINK_RE) || []).length <= MAX_LINKS && !s.replace(LINK_RE, ' ').split(/\s+/).some((w) => w.length > MAX_WORD);
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]{2,}$/;
 const FIELD_IDS = { name: 'cf-name', email: 'cf-email', subject: 'cf-subject', message: 'cf-message' };
 const SERVER_ERRORS = {
@@ -109,10 +119,10 @@ export function initContact() {
   }
   function validate(v) {
     const bad = [];
-    if (!v.name || v.name.length > LIMITS.name) bad.push('name');
+    if (!nameOk(v.name)) bad.push('name');
     if (!v.email || v.email.length > LIMITS.email || !EMAIL_RE.test(v.email)) bad.push('email');
     if (v.subject.length > LIMITS.subject) bad.push('subject');
-    if (v.message.length < LIMITS.messageMin || v.message.length > LIMITS.messageMax) bad.push('message');
+    if (!messageOk(v.message)) bad.push('message');
     return bad;
   }
   function showFieldErrors(fields) {

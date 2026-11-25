@@ -168,6 +168,9 @@ textarea.control { resize: vertical; }
 .score-value { flex: none; white-space: nowrap; margin-left: auto; min-width: 2.6rem; padding: .05rem .6rem; text-align: center; font-size: 1rem; color: var(--text); background: var(--bg-alt); border: 1px solid var(--border); border-radius: 999px; font-variant-numeric: tabular-nums; }
 .chips.compact { gap: var(--sp-2); }
 .chips.compact li { padding: .25rem .8rem; font-size: .9375rem; font-weight: 500; }
+/* Justified chip rows: every full row stretches to both edges like a justified line of text. The invisible spacer soaks up the free space of the last row, so that row keeps its natural widths (like the last line of a paragraph). */
+.chips li { flex: 1 1 auto; text-align: center; }
+.chips::after { content: ""; flex: 999 1 0; min-width: 0; }
 .card.edu { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: flex-start; }
 .edu-logo { flex: none; width: 4rem; height: 4rem; object-fit: contain; padding: .25rem; background: #fff; border: 1px solid var(--border); border-radius: var(--r-sm); }
 .edu-body { min-width: 0; flex: 1 1 8rem; } /* wraps below the logo only when there is no room, e.g. enlarged text */
@@ -206,6 +209,7 @@ textarea.control { resize: vertical; }
 .icon-link:hover { color: var(--on-primary-container); background: var(--primary-container); }
 .icon-link:active { border-radius: 12px; }
 .icon-link:focus-visible { border-radius: 50%; }
+#form-privacy { font-size: .875rem; font-weight: 400; line-height: 1.5; padding: var(--sp-3) var(--sp-4); } /* quiet privacy note, like the small "Based on my public Credly profile" line */
 .banner { max-width: none; padding: var(--sp-4); margin: 0 0 var(--sp-4); border: 0; border-left: 4px solid var(--accent); border-radius: var(--r-sm); background: var(--primary-container); color: var(--on-primary-container); }
 .form-fields { margin: 0; padding: 0; border: 0; min-inline-size: 0; }
 .form-fields .cta-row { margin-block: var(--sp-2) 0; }

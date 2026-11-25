@@ -6,8 +6,14 @@
 const ALLOWED_ORIGINS = ['https://nuray.io', 'https://www.nuray.io'];
 const LANGS = ['tr', 'en', 'de'];
 const MAX_BODY_BYTES = 8192;
-const LIMITS = { name: 100, email: 200, subject: 150, message: 3000 };
-const MIN_MESSAGE = 5;
+const LIMITS = { nameMin: 2, name: 80, email: 254, subject: 150, message: 3000 };
+const MIN_MESSAGE = 10;
+const MAX_LINKS = 2;
+const MAX_REPEAT = 6; // the same character more than 6 times in a row is rejected
+const MAX_WORD = 60; // longest allowed run without whitespace (links are not counted)
+const NAME_RE = /^\p{L}[\p{L}\p{M} .'’-]*$/u;
+const LINK_RE = /(?:https?:\/\/|www\.)\S+/gi;
+const hasRepeat = (s) => new RegExp('([^\\s])\\1{' + MAX_REPEAT + ',}', 'u').test(s);
 const MIN_FILL_MS = 3000;
 const MAX_FILL_MS = 24 * 60 * 60 * 1000;
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
@@ -85,6 +91,15 @@ function configProblems(env) {
   return bad;
 }
 
+// Loose content checks: reject obvious filler, not unusual but genuine input.
+export function nameOk(s) {
+  return s.length >= LIMITS.nameMin && s.length <= LIMITS.name && NAME_RE.test(s) && !hasRepeat(s);
+}
+export function messageOk(s) {
+  if (s.length < MIN_MESSAGE || s.length > LIMITS.message || hasRepeat(s)) return false;
+  if ((s.match(LINK_RE) || []).length > MAX_LINKS) return false;
+  return !s.replace(LINK_RE, ' ').split(/\s+/).some((w) => w.length > MAX_WORD);
+}
 export function validate(input) {
   const errors = [];
   if (!input || typeof input !== 'object' || Array.isArray(input)) return { errors: ['body'] };
@@ -101,10 +116,10 @@ export function validate(input) {
     website: input.website || '',
     startedAt: Number(input.startedAt),
   };
-  if (!v.name || v.name.length > LIMITS.name) errors.push('name');
+  if (!nameOk(v.name)) errors.push('name');
   if (!v.email || v.email.length > LIMITS.email || !EMAIL_RE.test(v.email) || v.email.includes('..')) errors.push('email');
   if (v.subject.length > LIMITS.subject) errors.push('subject');
-  if (v.message.length < MIN_MESSAGE || v.message.length > LIMITS.message) errors.push('message');
+  if (!messageOk(v.message)) errors.push('message');
   if (!LANGS.includes(v.lang)) errors.push('lang');
   if (!v.token || v.token.length > 2048) errors.push('token');
   return { value: v, errors };

@@ -133,9 +133,9 @@ test('validation: content type, size, JSON, fields, language, length limits', as
   assert.equal((await handle(post(null, { raw: '{not json' }), env)).status, 400);
   assert.equal((await handle(post(null, { raw: JSON.stringify(good({ message: 'x'.repeat(9000) })) }), env)).status, 413);
   const cases = [
-    [{ name: '' }, 'name'], [{ name: 'n'.repeat(101) }, 'name'], [{ email: 'not-an-email' }, 'email'], [{ email: 'a@b' }, 'email'],
+    [{ name: '' }, 'name'], [{ name: 'n'.repeat(81) }, 'name'], [{ name: 'A' }, 'name'], [{ name: 'x7#%&' }, 'name'], [{ name: 'Aaaaaaaa' }, 'name'], [{ name: '12345' }, 'name'], [{ email: 'not-an-email' }, 'email'], [{ email: 'a@b' }, 'email'],
     [{ email: 'a b@example.org' }, 'email'], [{ email: 'a..b@example.org' }, 'email'], [{ subject: 's'.repeat(151) }, 'subject'],
-    [{ message: 'hi' }, 'message'], [{ message: 'm'.repeat(3001) }, 'message'], [{ lang: 'fr' }, 'lang'], [{ token: '' }, 'token'],
+    [{ message: 'hi' }, 'message'], [{ message: 'too short' }, 'message'], [{ message: 'Hello!!!!!!!! there' }, 'message'], [{ message: 'x'.repeat(61) }, 'message'], [{ message: 'see http://a.example http://b.example http://c.example' }, 'message'], [{ message: 'm'.repeat(3001) }, 'message'], [{ lang: 'fr' }, 'lang'], [{ token: '' }, 'token'],
     [{ name: 42 }, 'name'],
   ];
   for (const [over, field] of cases) {
@@ -146,6 +146,14 @@ test('validation: content type, size, JSON, fields, language, length limits', as
     assert.ok(b.fields.includes(field), `${field} in ${b.fields}`);
   }
   assert.equal(calls.resend.length, 0);
+});
+
+test('validation accepts genuine international names, links and punctuation', async () => {
+  for (const over of [{ name: 'Önder Nuray' }, { name: "Jean-Luc O'Brien-Müller" }, { name: 'Zeynep Çelik Şahin' }, { name: 'Dr. Ana María' }, { message: 'Please see https://example.org/a and www.example.org... thanks!!' }, { email: 'a.b+c@sub.example.co' }]) {
+    calls.resend.length = 0;
+    const res = await handle(post(good(over)), makeEnv());
+    assert.equal(res.status, 200, JSON.stringify(over));
+  }
 });
 
 test('honeypot returns success without sending anything', async () => {
@@ -203,7 +211,7 @@ test('misconfiguration returns a generic 500 and names no secret in the response
 
 test('HTML email escapes user content; header fields lose line breaks', async () => {
   const evil = '<script>alert(1)</script> & "quoted"';
-  await handle(post(good({ name: `Eve\r\nBcc: x@example.test ${evil}`, subject: `Hi\r\nBcc: y@example.test`, message: `Body ${evil}` })), makeEnv());
+  await handle(post(good({ name: 'Eve\r\nAdams', subject: `Hi\r\nBcc: y@example.test ${evil}`, message: `Body ${evil}` })), makeEnv());
   const owner = calls.resend[0].body;
   assert.ok(!owner.html.includes('<script>'));
   assert.ok(owner.html.includes('&lt;script&gt;'));

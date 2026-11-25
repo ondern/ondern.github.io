@@ -492,7 +492,7 @@ await test('Contact form: client validation, server error codes and network fail
   const p = await contactPage('en', errApi(429, 'rate_limited'));
   await p.click('#cf-submit');
   if (p.apiCalls.length) throw new Error('invalid form was sent');
-  if (!/enter your name/.test(await p.textContent('#cf-status'))) throw new Error('name error missing');
+  if (!/enter a valid name/.test(await p.textContent('#cf-status'))) throw new Error('name error missing');
   if ((await p.getAttribute('#cf-name', 'aria-invalid')) !== 'true' || !(await p.evaluate(() => document.activeElement.id === 'cf-name'))) throw new Error('invalid field not marked/focused');
   await fillForm(p, { email: 'broken' });
   await p.click('#cf-submit');
@@ -667,7 +667,24 @@ await test('Justified paragraphs: body text is justified with hyphenation above 
     if (r.over > 0) throw new Error(lang + ' ' + width + ': horizontal overflow ' + r.over);
   }
 });
-await test('Target size: every visible button, select, input, textarea, icon link and nav link is at least 24x24 CSS px (desktop and mobile)', async () => {
+await test('Chip lists are justified: every full row ends at the right edge of the list, the last row keeps natural widths (en/de/tr, 320/390/768/1280 px)', async () => {
+  for (const lang of ['en', 'de', 'tr']) for (const width of [320, 390, 768, 1280]) {
+    const p = await newPage({ path: '/?lang=' + lang, viewport: { width, height: 900 } });
+    const lists = await p.evaluate(() => [...document.querySelectorAll('ul.chips')].map((ul) => {
+      const box = ul.getBoundingClientRect(); const rows = new Map();
+      [...ul.children].forEach((li) => { const r = li.getBoundingClientRect(); const k = Math.round(r.top); rows.set(k, Math.max(rows.get(k) ?? 0, r.right)); });
+      const rights = [...rows.entries()].sort((a, b) => a[0] - b[0]).map((e) => e[1]);
+      return { n: ul.children.length, listRight: box.right, rights, over: ul.scrollWidth - ul.clientWidth };
+    }));
+    await p.context().close();
+    if (lists.length !== 3) throw new Error(lang + ' ' + width + ': expected 3 chip lists, found ' + lists.length);
+    for (const l of lists) {
+      if (l.over > 0) throw new Error(lang + ' ' + width + ': chip list overflows');
+      l.rights.slice(0, -1).forEach((r, i) => { if (Math.abs(r - l.listRight) > 1.5) throw new Error(lang + ' ' + width + ': row ' + (i + 1) + ' of ' + l.n + ' chips ends ' + (l.listRight - r).toFixed(1) + 'px from the right edge'); });
+      if (l.rights.at(-1) > l.listRight + 1.5) throw new Error(lang + ' ' + width + ': last row sticks out');
+    }
+  }
+});await test('Target size: every visible button, select, input, textarea, icon link and nav link is at least 24x24 CSS px (desktop and mobile)', async () => {
   for (const [w, h] of [[1280, 800], [390, 800]]) {
     const p = await newPage({ viewport: { width: w, height: h } });
     const small = await p.evaluate(() => [...document.querySelectorAll('button, select, input:not([type=hidden]), textarea, .btn, .icon-link, .primary-nav a, summary')]
@@ -684,11 +701,11 @@ await test('Forced colours (Windows High Contrast): buttons, icon links and tags
   await ctx.close();
   for (const [s, wd, st] of res) if (wd === '0px' || st === 'none') throw new Error(s + ' has no border in forced-colours mode');
 });
-await test('Navigation: "Education & Certificates" label in en/de/tr (desktop and mobile), anchors and sections intact', async () => {
+await test('Navigation: "Certifications" label in en/de/tr (desktop and mobile), anchors and sections intact', async () => {
   const want = {
-    en: ['About', 'Experience', 'Education', 'Skills', 'Education & Certificates', 'Projects', 'Contact'],
-    de: ['Über mich', 'Erfahrung', 'Ausbildung', 'Kenntnisse', 'Ausbildung & Zertifikate', 'Projekte', 'Kontakt'],
-    tr: ['Hakkımda', 'Deneyim', 'Eğitim', 'Beceriler', 'Eğitim ve Sertifikalar', 'Projeler', 'İletişim'],
+    en: ['About', 'Experience', 'Education', 'Skills', 'Certifications', 'Projects', 'Contact'],
+    de: ['Über mich', 'Erfahrung', 'Ausbildung', 'Kenntnisse', 'Zertifizierungen', 'Projekte', 'Kontakt'],
+    tr: ['Hakkımda', 'Deneyim', 'Eğitim', 'Beceriler', 'Sertifikalar', 'Projeler', 'İletişim'],
   };
   const hrefs = ['#about', '#experience', '#education', '#skills', '#credentials', '#projects', '#contact'];
   for (const lang of ['en', 'de', 'tr']) {
@@ -861,7 +878,7 @@ await test('Footer notice: exact text in en/de/tr (includes the contact-form pro
     await p.context().close();
     if (d.notice !== want[lang]) throw new Error(lang + ': notice differs: ' + d.notice);
     if (d.links.some((h) => /legal/i.test(h || ''))) throw new Error(lang + ': link to a legal page remains');
-    if (d.footerLinks.join() !== '#top') throw new Error(lang + ': unexpected footer links ' + d.footerLinks);
+    if (d.footerLinks.join() !== '#top,https://www.cloudflare.com/,https://resend.com/,https://www.zoho.com') throw new Error(lang + ': unexpected footer links ' + d.footerLinks);
   }
   const res = await fetch(base + '/legal.html');
   if (res.status !== 404) throw new Error('legal.html still served: ' + res.status);

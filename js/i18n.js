@@ -6,6 +6,31 @@ let dict = {};
 
 export const getLang = () => current;
 
+// Provider names that become links inside elements marked with data-i18n-links.
+const PROVIDER_LINKS = {
+  Cloudflare: 'https://www.cloudflare.com/',
+  Resend: 'https://resend.com/',
+  Zoho: 'https://www.zoho.com',
+};
+const PROVIDER_RE = new RegExp('\\b(' + Object.keys(PROVIDER_LINKS).join('|') + ')\\b', 'g');
+
+function setTextWithLinks(el, text) {
+  const nodes = [];
+  let last = 0;
+  for (const m of text.matchAll(PROVIDER_RE)) {
+    if (m.index > last) nodes.push(document.createTextNode(text.slice(last, m.index)));
+    const a = document.createElement('a');
+    a.href = PROVIDER_LINKS[m[1]];
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = m[1];
+    nodes.push(a);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) nodes.push(document.createTextNode(text.slice(last)));
+  el.replaceChildren(...nodes);
+}
+
 function pickInitial() {
   const q = new URLSearchParams(location.search).get('lang');
   if (SUPPORTED.includes(q)) return q;
@@ -35,7 +60,8 @@ export function applyTranslations(root = document) {
   root.querySelectorAll('[data-i18n]').forEach((el) => {
     const key = el.dataset.i18n;
     const vars = el.hasAttribute('data-year') ? { year: new Date().getFullYear() } : undefined;
-    el.textContent = t(key, vars);
+    if (el.hasAttribute('data-i18n-links')) setTextWithLinks(el, t(key, vars));
+    else el.textContent = t(key, vars);
   });
   root.querySelectorAll('[data-i18n-attr]').forEach((el) => {
     el.dataset.i18nAttr.split(';').forEach((pair) => {
