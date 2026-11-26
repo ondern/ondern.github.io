@@ -551,7 +551,7 @@ await test('Confirmation page: opening the link sends nothing; the button confir
   };
   const state = (p) => p.evaluate(() => ({ s: document.getElementById('verify-status').textContent.trim(), btn: document.getElementById('verify-btn').hidden, dis: document.getElementById('verify-btn').disabled, lang: document.documentElement.lang, title: document.title, h1: document.querySelector('h1').textContent, hash: location.hash, robots: document.querySelector('meta[name=robots]').content }));
   // Success, in each language; nothing is sent when the page opens.
-  for (const [lang, ok, btn] of [['en', /confirmed and your message has been sent/, 'Confirm email address and send message'], ['de', /Ihre E-Mail-Adresse ist bestätigt/, 'E-Mail-Adresse bestätigen und Nachricht senden'], ['tr', /E-posta adresiniz onaylandı/, 'E-posta adresini doğrula ve mesajı gönder']]) {
+  for (const [lang, ok, btn, h1] of [['en', /^Your email address has been confirmed and your message was sent successfully\.$/, 'Confirm email address and send message', 'Thank you for confirming your email address!'], ['de', /^Ihre E-Mail-Adresse wurde bestätigt und Ihre Nachricht wurde erfolgreich gesendet\.$/, 'E-Mail-Adresse bestätigen und Nachricht senden', 'Vielen Dank für die Bestätigung Ihrer E-Mail-Adresse!'], ['tr', /^E-posta adresiniz doğrulandı ve mesajınız başarıyla gönderildi\.$/, 'E-posta adresini doğrula ve mesajı gönder', 'E-posta adresinizi doğruladığınız için teşekkürler!']]) {
     const p = await open(lang, '#t=' + TOKEN, { status: 200, body: { ok: true } });
     let s = await state(p);
     if (p.posts.length || s.btn || s.lang !== lang || s.robots !== 'noindex') throw new Error(lang + ': the page must wait for the button: ' + JSON.stringify(s));
@@ -560,7 +560,7 @@ await test('Confirmation page: opening the link sends nothing; the button confir
     await p.waitForFunction(() => document.getElementById('verify-status').dataset.kind === 'success');
     s = await state(p);
     const posts = p.posts; const probs = p.problems; await p.context().close();
-    if (!ok.test(s.s) || !s.btn || s.hash) throw new Error(lang + ': after success ' + JSON.stringify(s));
+    if (!ok.test(s.s) || s.h1 !== h1 || !s.btn || s.hash) throw new Error(lang + ': after success ' + JSON.stringify(s));
     if (posts.length !== 1 || posts[0].token !== TOKEN || Object.keys(posts[0]).length !== 1) throw new Error(lang + ': request ' + JSON.stringify(posts));
     if (probs.length) throw new Error(lang + ': CSP/console: ' + probs.join('|'));
   }
@@ -857,7 +857,7 @@ await test('Contact local dev harness: real Worker code, mocked Turnstile/Resend
     await v.waitForTimeout(400);
     if (/would send the owner notification/.test(out)) throw new Error('opening the link delivered the message');
     await v.click('#verify-btn');
-    await v.waitForFunction(() => /confirmed and your message has been sent/.test(document.getElementById('verify-status').textContent));
+    await v.waitForFunction(() => /confirmed and your message was sent successfully/.test(document.getElementById('verify-status').textContent));
     const hidden = await v.evaluate(() => ({ btn: document.getElementById('verify-btn').hidden, hash: location.hash }));
     await v.goto('about:blank'); // same URL plus a hash would be a same-document navigation without a reload
     await v.goto(link);

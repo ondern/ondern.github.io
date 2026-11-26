@@ -12,6 +12,7 @@ async function main() {
   const status = $('verify-status');
   const intro = $('verify-intro');
   const home = $('verify-home');
+  const title = document.querySelector('h1');
   const token = (location.hash.match(/^#t=([^&]*)$/) || [])[1] || '';
   let statusKey = null;
   let working = false;
@@ -55,6 +56,8 @@ async function main() {
     btn.removeAttribute('aria-busy');
     btn.textContent = t('verify.button');
     if (res && res.ok && data?.ok) {
+      title.dataset.i18n = 'verify.doneTitle'; // the heading follows language changes from now on
+      title.textContent = t('verify.doneTitle');
       show('verify.ok', 'success');
       finish();
       history.replaceState(null, '', location.pathname + location.search); // the token is used up
