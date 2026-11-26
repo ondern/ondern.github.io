@@ -62,7 +62,7 @@
   "cred.open": "Details zu {name} anzeigen",
   "cred.profileLink": "Basierend auf meinen Credly- und LinkedIn-Profilen.",
   "proj.title": "Projekte",
-  "proj.intro": "Öffentliche Repositories auf GitHub. Als Fork gekennzeichnete Repositories basieren auf Projekten anderer Autoren; das Originalwerk gehört diesen Autoren.",
+  "proj.intro": "Meine aktuellen Entwicklungen auf GitHub. Als Fork gekennzeichnete Repositories basieren auf den Ursprungsprojekten anderer Autoren; das Originalwerk gehört diesen Autoren.",
   "proj.empty": "Es wurden noch keine Projekte ausgewählt.",
   "proj.view": "Auf GitHub ansehen",
   "proj.noDesc": "Keine Beschreibung vorhanden.",

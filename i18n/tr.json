@@ -62,7 +62,7 @@
   "cred.open": "{name} ayrıntılarını göster",
   "cred.profileLink": "Credly ve LinkedIn profillerime dayanır.",
   "proj.title": "Projeler",
-  "proj.intro": "GitHub'daki herkese açık depolar. Fork olarak işaretlenen depolar başka yazarların projelerine dayanır; özgün çalışma bu yazarlara aittir.",
+  "proj.intro": "GitHub'daki mevcut geliştirmelerim. Fork olarak işaretlenen depolar başka yazarların ana projelerine dayanır; özgün çalışma bu yazarlara aittir.",
   "proj.empty": "Henüz öne çıkan proje seçilmedi.",
   "proj.view": "GitHub'da görüntüle",
   "proj.noDesc": "Açıklama yok.",
