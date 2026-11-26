@@ -194,7 +194,7 @@
   "pr.intro": "Diğer projelere gönderdiğim katkılar ({date} tarihli kayıtlı veriler).",
   "pr.open": "Açık",
   "pr.merged": "Birleştirildi",
-  "contact.emailHint": "Mesajınızın gönderilebilmesi için bu adrese bir onay bağlantısı göndeririz. Mesajınız, bağlantıyı açıp onayladıktan sonra iletilir.",
+  "contact.emailHint": "Mesajınızın gönderilebilmesi için bu adrese bir onay bağlantısı gönderilecektir. Mesajınız, bağlantıyı açıp onayladıktan sonra iletilecektir.",
   "contact.resend": "Yeni bağlantı gönder",
   "contact.resendDone": "{email} adresine yeni bir onay bağlantısı gönderildi. Önceki bağlantı artık çalışmaz. Yeni bağlantı 15 dakika geçerlidir.",
   "contact.err.addressLimit": "Bu adres için çok fazla onay e-postası istendi. Lütfen yarın tekrar deneyin.",

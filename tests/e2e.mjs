@@ -440,7 +440,7 @@ const PRIVACY_BASE = {
 const PRIVACY_ADD = { en: ' Your message is stored temporarily, for up to 15 minutes, until you confirm your email address, and is then deleted.', de: ' Ihre Nachricht wird bis zur Bestätigung Ihrer E-Mail-Adresse höchstens 15 Minuten zwischengespeichert und danach gelöscht.', tr: ' Mesajınız, e-posta adresinizi onaylayana kadar en fazla 15 dakika geçici olarak saklanır ve sonra silinir.' };
 const PRIVACY = Object.fromEntries(Object.entries(PRIVACY_BASE).map(([l, v]) => [l, v + PRIVACY_ADD[l]]));
 const SUCCESS = { en: 'We sent a confirmation link to ada@example.org', de: 'Bestätigungslink an ada@example.org gesendet', tr: 'ada@example.org adresine bir onay bağlantısı gönderdik' };
-const EMAIL_HINT = { en: 'we email a confirmation link to this address', de: 'schicken wir einen Bestätigungslink an diese Adresse', tr: 'bu adrese bir onay bağlantısı göndeririz' };
+const EMAIL_HINT = { en: 'a confirmation link will be sent to this address', de: 'wird an diese Adresse ein Bestätigungslink geschickt', tr: 'bu adrese bir onay bağlantısı gönderilecektir' };
 await test('Contact form: active in en/de/tr with the approved disclosure; nothing contacted or stored before interaction', async () => {
   const words = { en: ['Send message', 'Name'], de: ['Nachricht senden', 'Name'], tr: ['Mesajı gönder', 'Ad'] };
   for (const lang of ['en', 'de', 'tr']) {

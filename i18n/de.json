@@ -194,7 +194,7 @@
   "pr.intro": "Beiträge, die ich bei anderen Projekten eingereicht habe (gespeicherter Stand vom {date}).",
   "pr.open": "Offen",
   "pr.merged": "Zusammengeführt",
-  "contact.emailHint": "Damit Ihre Nachricht gesendet wird, schicken wir einen Bestätigungslink an diese Adresse. Die Nachricht wird erst zugestellt, nachdem Sie den Link geöffnet und bestätigt haben.",
+  "contact.emailHint": "Damit Ihre Nachricht gesendet werden kann, wird an diese Adresse ein Bestätigungslink geschickt. Ihre Nachricht wird zugestellt, sobald Sie den Link geöffnet und bestätigt haben.",
   "contact.resend": "Neuen Link senden",
   "contact.resendDone": "Ein neuer Bestätigungslink wurde an {email} gesendet. Der vorherige Link funktioniert nicht mehr. Der neue ist 15 Minuten gültig.",
   "contact.err.addressLimit": "Für diese Adresse wurden zu viele Bestätigungs-E-Mails angefordert. Bitte versuchen Sie es morgen erneut.",
