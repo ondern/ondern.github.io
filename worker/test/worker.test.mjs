@@ -128,7 +128,7 @@ test('submitting only mails a confirmation link: nothing reaches the owner befor
 });
 
 test('the confirmation mail carries no visitor-supplied text and follows the form language', async () => {
-  for (const [lang, re] of [['tr', /onaylayın/], ['en', /confirm your message/], ['de', /bestätigen/]]) {
+  for (const [lang, re] of [['tr', /doğrulayın/], ['en', /confirm your email address/], ['de', /bestätigen/]]) {
     beforeEachMocks();
     await handle(post(good({ lang, name: 'Eve Secretname', subject: 'Subjectmarker', message: 'Private message body marker' })), makeEnv());
     const mail = calls.resend[0].body;
