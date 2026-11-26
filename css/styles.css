@@ -246,6 +246,8 @@ textarea.control { resize: vertical; }
 .form-status:empty { display: none; }
 .form-status[data-kind="error"] { color: var(--danger); }
 .form-status[data-kind="success"] { color: var(--success); }
+/* Green success notice (contact form and confirmation page): tablet and mobile justify with controlled hyphenation; desktop stays left-aligned. Hyphenation follows <html lang>. */
+@media (max-width: 62rem) { .form-status[data-kind="success"] { text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; } }
 .control[aria-invalid="true"] { border-color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
 .site-footer { border-top: 1px solid var(--border); padding-block: var(--sp-6); background: var(--bg-alt); }
 .footer-inner { display: grid; gap: var(--sp-3); }
