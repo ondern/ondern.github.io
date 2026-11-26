@@ -1000,9 +1000,9 @@ await test('Forced colours (Windows High Contrast): buttons, icon links and tags
 });
 await test('Navigation: "Certifications" label in en/de/tr (desktop and mobile), anchors and sections intact', async () => {
   const want = {
-    en: ['About', 'Experience', 'Education', 'Skills', 'Certifications', 'Projects', 'Contact'],
-    de: ['Über mich', 'Erfahrung', 'Ausbildung', 'Kenntnisse', 'Zertifizierungen', 'Projekte', 'Kontakt'],
-    tr: ['Hakkımda', 'Deneyim', 'Eğitim', 'Beceriler', 'Sertifikalar', 'Projeler', 'İletişim'],
+    en: ['About', 'Work Experience', 'Education', 'Skills', 'Certifications and Training', 'Projects', 'Contact'],
+    de: ['Über mich', 'Berufserfahrung', 'Ausbildung', 'Kompetenzen', 'Zertifizierungen und Weiterbildungen', 'Projekte', 'Kontakt'],
+    tr: ['Hakkımda', 'İş Deneyimi', 'Eğitim', 'Yetkinlikler', 'Sertifikalar ve Eğitimler', 'Projeler', 'İletişim'],
   };
   const hrefs = ['#about', '#experience', '#education', '#skills', '#credentials', '#projects', '#contact'];
   for (const lang of ['en', 'de', 'tr']) {
