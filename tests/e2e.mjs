@@ -1144,7 +1144,7 @@ await test('Goethe A1/A2: each image belongs to its entry; ID + verification lin
 });
 
 await test('CBT Nuggets item: completion date 17 December 2016 in en/de/tr, learning activity, no verification link', async () => {
-  const want = { en: ['17 December 2016', 'Completed', 'Learning activity'], de: ['17. Dezember 2016', 'Abgeschlossen', 'Lernaktivität'], tr: ['17 Aralık 2016', 'Tamamlandı', 'Öğrenme etkinliği'] };
+  const want = { en: ['17 December 2016', 'Completed', 'Training and learning activity'], de: ['17. Dezember 2016', 'Abgeschlossen', 'Schulung und Lernaktivität'], tr: ['17 Aralık 2016', 'Tamamlandı', 'Eğitim ve öğrenme etkinliği'] };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
     await p.fill('#cred-search', 'Ethical');
