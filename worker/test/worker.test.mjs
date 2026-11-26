@@ -33,7 +33,7 @@ function beforeEachMocks() {
       if (mocks.siteverifyRaw !== undefined) return new Response(mocks.siteverifyRaw, { status: mocks.siteverifyStatus });
       return new Response(JSON.stringify(mocks.siteverify), { status: mocks.siteverifyStatus });
     }
-    if (String(url).includes('api.resend.com')) {
+    if (new URL(String(url)).hostname === 'api.resend.com') {
       calls.resend.push({ headers: init.headers, body: JSON.parse(init.body) });
       const gate = mocks.resendGate?.[calls.resend.length - 1];
       if (gate) await gate; // lets a test hold one Resend call open

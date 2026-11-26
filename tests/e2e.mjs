@@ -163,7 +163,8 @@ await test('Real credentials: every link is https and associated with its own ti
   const data = JSON.parse(readFileSync('data/credentials.json', 'utf8')).items;
   const bad = data.filter((i) => i.credentialUrl && !/^https:\/\//.test(i.credentialUrl)).map((i) => i.title);
   const ids = new Map();
-  for (const i of data) if (i.credentialUrl?.includes('credly.com')) { if (ids.has(i.credentialUrl)) bad.push('dup url ' + i.title); ids.set(i.credentialUrl, i.title); }
+  const isCredly = (u) => { try { const h = new URL(u).hostname; return h === 'credly.com' || h.endsWith('.credly.com'); } catch { return false; } };
+  for (const i of data) if (i.credentialUrl && isCredly(i.credentialUrl)) { if (ids.has(i.credentialUrl)) bad.push('dup url ' + i.title); ids.set(i.credentialUrl, i.title); }
   if (bad.length) throw new Error(bad.join(', '));
   return `${data.length} credentials, ${[...ids].length} unique Credly URLs`;
 });
