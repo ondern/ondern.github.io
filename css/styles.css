@@ -87,6 +87,7 @@ main p { max-width: 50ch; } /* about 65-75 characters per line: ch is the width 
 .meta.justify[data-i18n="lang.note"] { max-width: none; text-align: left; hyphens: manual; }
 @media (max-width: 62rem) { .meta.justify[data-i18n="lang.note"] { text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; } }
 /* Pull requests and recent activity descriptions: desktop keeps its natural width; tablet and mobile justify with controlled hyphenation. */
+#pr-intro, #act-intro { max-width: none; }
 @media (max-width: 62rem) { #pr-intro, #act-intro { text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; } }
 .card p { max-width: none; } /* paragraphs fill the card, so justified text lines up with both padding edges */
 #about .container > p, #experience .container > p, #credentials .reveal > p, #projects p.lead { max-width: none; }
