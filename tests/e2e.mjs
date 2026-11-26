@@ -551,7 +551,7 @@ await test('Confirmation page: opening the link sends nothing; the button confir
   };
   const state = (p) => p.evaluate(() => ({ s: document.getElementById('verify-status').textContent.trim(), btn: document.getElementById('verify-btn').hidden, dis: document.getElementById('verify-btn').disabled, lang: document.documentElement.lang, title: document.title, h1: document.querySelector('h1').textContent, hash: location.hash, robots: document.querySelector('meta[name=robots]').content }));
   // Success, in each language; nothing is sent when the page opens.
-  for (const [lang, ok, btn] of [['en', /confirmed and your message has been sent/, 'Confirm and send'], ['de', /Ihre E-Mail-Adresse ist bestätigt/, 'Bestätigen und senden'], ['tr', /E-posta adresiniz onaylandı/, 'Onayla ve gönder']]) {
+  for (const [lang, ok, btn] of [['en', /confirmed and your message has been sent/, 'Confirm email address and send message'], ['de', /Ihre E-Mail-Adresse ist bestätigt/, 'E-Mail-Adresse bestätigen und Nachricht senden'], ['tr', /E-posta adresiniz onaylandı/, 'E-posta adresini doğrula ve mesajı gönder']]) {
     const p = await open(lang, '#t=' + TOKEN, { status: 200, body: { ok: true } });
     let s = await state(p);
     if (p.posts.length || s.btn || s.lang !== lang || s.robots !== 'noindex') throw new Error(lang + ': the page must wait for the button: ' + JSON.stringify(s));
