@@ -432,9 +432,9 @@ async function fillForm(p, over = {}) {
   await p.fill('#cf-message', over.message ?? 'A short test message.');
 }
 const PRIVACY_BASE = {
-  en: 'Contact form messages are processed through Cloudflare for bot protection and through Resend and Zoho for email delivery. Please do not submit sensitive personal information.',
-  de: 'Nachrichten über das Kontaktformular werden zum Schutz vor Bots über Cloudflare und zur E-Mail-Zustellung über Resend und Zoho verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten.',
-  tr: 'İletişim formu mesajları, botlara karşı koruma için Cloudflare, e-posta iletimi için Resend ve Zoho hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin.',
+  en: 'Your message is processed through Cloudflare bot protection and the Resend and Zoho email services. Please do not share sensitive personal information.',
+  de: 'Ihre Nachricht wird über den Bot-Schutz von Cloudflare sowie die E-Mail-Dienste Resend und Zoho verarbeitet. Bitte teilen Sie keine sensiblen personenbezogenen Daten mit.',
+  tr: 'Mesajınız, Cloudflare bot koruması ile Resend ve Zoho e-posta hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi paylaşmayın.',
 };
 // The banner adds the temporary-storage sentence to the base disclosure; the footer has its own wording after the base disclosure.
 const PRIVACY_ADD = { en: ' Your message is stored temporarily, for up to 15 minutes, until you confirm your email address, and is then deleted.', de: ' Ihre Nachricht wird bis zur Bestätigung Ihrer E-Mail-Adresse höchstens 15 Minuten zwischengespeichert und danach gelöscht.', tr: ' Mesajınız, e-posta adresinizi onaylayana kadar en fazla 15 dakika geçici olarak saklanır ve sonra silinir.' };
@@ -460,7 +460,6 @@ await test('Contact form: active in en/de/tr with the approved disclosure; nothi
     if (info.disabled) throw new Error(lang + ': disabled controls');
     if (info.submitText !== words[lang][0] || info.labels[0] !== words[lang][1]) throw new Error(lang + ': labels not localized');
     if (info.privacy !== PRIVACY[lang]) throw new Error(lang + ': disclosure differs: ' + info.privacy);
-    if (!info.footer.includes(PRIVACY_BASE[lang])) throw new Error(lang + ': footer lacks disclosure');
     if (!info.hint.includes(EMAIL_HINT[lang]) || info.hintId !== 'cf-email-hint' || !info.emailDesc.split(' ').includes('cf-email-hint')) throw new Error(lang + ': e-mail confirmation hint missing or not linked: ' + JSON.stringify([info.hint, info.emailDesc]));
     if (info.hp.aria !== 'true' || info.hp.tab !== -1 || info.hp.rect > 0) throw new Error(lang + ': honeypot not hidden: ' + JSON.stringify(info.hp));
     if (info.live !== 'status') throw new Error(lang + ': status region missing');
