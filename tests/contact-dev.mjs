@@ -7,11 +7,14 @@ import http from 'node:http';
 process.env.CONTACT_DEV = '1'; // makes tests/serve.mjs add the local API origin to the page CSP (production files stay untouched)
 await import('./serve.mjs');
 const { handle } = await import('../worker/src/index.js');
+const { makeD1 } = await import('../worker/test/d1-shim.mjs');
 
 const PAGE_ORIGINS = ['http://localhost:4173', 'http://127.0.0.1:4173'];
 const hits = new Map();
 const env = {
   RESEND_API_KEY: 'mock', TURNSTILE_SECRET_KEY: 'mock', CONTACT_RECIPIENT: 'owner@example.test', MAIL_FROM: 'nuray.io <noreply@nuray.io>',
+  DB: makeD1(), // in-memory SQLite stand-in for D1 (real SQL)
+  VERIFY_BASE_URL: 'http://localhost:4173/verify.html?contactDev=1', // the confirmation link opens the local page
   RATE_LIMITER: { limit: async ({ key }) => { const now = Date.now(); const a = (hits.get(key) || []).filter((t) => now - t < 60000); a.push(now); hits.set(key, a); return { success: a.length <= 5 }; } },
 };
 // The Worker's outbound calls are replaced here. No request reaches Cloudflare or Resend.
@@ -19,7 +22,8 @@ globalThis.fetch = async (url, init) => {
   if (String(url).includes('siteverify')) { console.log('[MOCK] Turnstile Siteverify accepted any token (not a real verification)'); return new Response(JSON.stringify({ success: true, hostname: 'nuray.io' })); }
   if (String(url).includes('api.resend.com')) {
     const body = JSON.parse(init.body);
-    console.log(`[MOCK] Resend: would send the ${body.reply_to ? 'owner notification' : 'acknowledgment'} (nothing is sent)`);
+    const link = (body.text.match(/https?:\/\/\S+#t=\S+/) || [])[0];
+    console.log(link ? `[MOCK] Resend: would send the confirmation link (nothing is sent): ${link}` : `[MOCK] Resend: would send the ${body.reply_to ? 'owner notification' : 'acknowledgment'} (nothing is sent)`);
     return new Response('{"id":"mock"}', { status: 200 });
   }
   throw new Error('unexpected outbound request ' + url);

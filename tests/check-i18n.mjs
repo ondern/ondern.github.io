@@ -6,6 +6,18 @@ const langs = ['en', 'de', 'tr'];
 const dicts = Object.fromEntries(langs.map((l) => [l, JSON.parse(readFileSync(`i18n/${l}.json`, 'utf8'))]));
 let failed = 0;
 const fail = (m) => { console.log('FAIL', m); failed++; };
+// Encoding guard: no UTF-8 BOM and no mojibake (UTF-8 text decoded as Latin-1/cp1252 and saved again,
+// which turns an "O with umlaut" into "A-tilde + en dash", a middle dot into "A-circumflex + middle dot", etc.).
+// Written with \u escapes so this file does not match itself.
+const MOJIBAKE = /\u00C3[\u0080-\u00BF\u0152\u0153\u0160\u0161\u0178\u017D\u017E\u0192\u02C6\u02DC\u2013\u2014\u2018-\u201E\u2020-\u2022\u2026\u2030\u2039\u203A\u20AC\u2122]|\u00C2[\u00A0-\u00BF]|\u00E2\u20AC|\u00C4[\u00B0\u00B1\u009F\u0178]|\u00C5[\u0178\u009F\u017E\u0161]|\uFFFD/;
+const encodingFiles = ['index.html', 'verify.html', 'README.md', 'worker/README.md', ...['css', 'js', 'i18n', 'data', 'tests', 'tools', 'worker/src', 'worker/test'].flatMap((d) => (existsSync(d) ? readdirSync(d).filter((f) => /\.(js|mjs|css|json|html|md)$/.test(f)).map((f) => `${d}/${f}`) : []))];
+for (const f of encodingFiles) {
+  if (!existsSync(f)) continue;
+  const raw = readFileSync(f);
+  if (raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf) fail(`${f} starts with a UTF-8 BOM`);
+  const m = raw.toString('utf8').match(MOJIBAKE);
+  if (m) fail(`${f} contains garbled characters (mojibake): ${JSON.stringify(m[0])}`);
+}
 
 for (const l of ['de', 'tr']) {
   for (const k of Object.keys(dicts.en)) if (!(k in dicts[l])) fail(`${l} missing key ${k}`);
@@ -16,7 +28,7 @@ for (const l of ['de', 'tr']) {
     if (ph(v) !== ph(dicts.en[k])) fail(`${l} placeholder mismatch ${k}`);
   }
 }
-for (const file of ['index.html']) {
+for (const file of ['index.html', 'verify.html']) {
   const html = readFileSync(file, 'utf8');
   for (const m of html.matchAll(/data-i18n="([^"]+)"/g)) if (!(m[1] in dicts.en)) fail(`${file}: unknown key ${m[1]}`);
   for (const m of html.matchAll(/data-i18n-attr="([^"]+)"/g)) {
@@ -65,7 +77,7 @@ for (const l of langs) {
 const walk = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${d}/${e.name}`) : [`${d}/${e.name}`]));
 for (const f of walk('assets/img')) if (!allowed.has(f)) fail(`unreferenced or unexpected image: ${f}`);
 // Privacy guard: no birth data or dd.mm.19xx dates in public text files.
-const textFiles = [...walk('i18n'), ...walk('data'), ...walk('js'), 'index.html', 'README.md'];
+const textFiles = [...walk('i18n'), ...walk('data'), ...walk('js'), 'index.html', 'verify.html', 'README.md'];
 for (const f of textFiles) {
   const t = readFileSync(f, 'utf8');
   const hits = findPrivate(t); if (hits && hits.length) fail(`private word(s) from the local denylist in ${f}`);
@@ -78,7 +90,7 @@ for (const f of ['css/styles.css', ...walk('js')]) {
   if (/user-select\s*:\s*none|-webkit-user-select\s*:\s*none|contextmenu|oncopy|addEventListener\(\s*['"](copy|cut|selectstart|dragstart)['"]/.test(s)) fail(`copy-blocking pattern in ${f}`);
 }
 // Privacy-first: no automatic third-party requests.
-for (const f of [...walk('js'), 'index.html']) {
+for (const f of [...walk('js'), 'index.html', 'verify.html']) {
   const s = readFileSync(f, 'utf8');
   if (/api\.github\.com/.test(s)) fail('GitHub API reference in ' + f);
   if (/fetch\(\s*['"`]https?:/.test(s)) fail('absolute-URL fetch in ' + f);

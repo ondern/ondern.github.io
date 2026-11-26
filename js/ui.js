@@ -7,14 +7,7 @@ export function initTheme() {
       try { localStorage.setItem('theme', next); } catch (e) { /* ignore */ }
     });
   });
-  // Follow the OS setting until the visitor makes an explicit choice.
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    let stored = null;
-    try { stored = localStorage.getItem('theme'); } catch (err) { /* ignore */ }
-    if (!stored) root.dataset.theme = e.matches ? 'dark' : 'light';
-  });
 }
-
 export function initNav() {
   const btn = document.getElementById('menu-btn');
   const nav = document.getElementById('primary-nav');

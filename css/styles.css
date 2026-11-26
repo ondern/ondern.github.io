@@ -82,6 +82,7 @@ main p { max-width: 50ch; } /* about 65-75 characters per line: ch is the width 
    Narrow cards and .meta lines stay left-aligned, because justifying a column of about 30 characters opens large gaps. */
 :where(main p:not(.meta):not(.status)), .footer-notice, :where(.dialog p) { text-align: justify; text-justify: inter-word; hyphens: auto; }
 .lang-card p, .proj-card p { text-align: left; hyphens: manual; }
+.justify, .meta.justify, .lang-card p.justify { text-align: justify; text-justify: inter-word; hyphens: auto; }
 .card p { max-width: none; } /* paragraphs fill the card, so justified text lines up with both padding edges */
 #about .container > p, #experience .container > p, #credentials .reveal > p, #projects p.lead { max-width: none; }
 .timeline + .meta { margin-top: var(--sp-4); }
@@ -111,7 +112,7 @@ ul, ol { padding: 0; margin: 0; list-style: none; }
 .primary-nav a { display: inline-block; white-space: nowrap; padding: .5rem .75rem; border-radius: 999px; color: var(--text); text-decoration: none; font-size: 1rem; font-weight: 500; }
 .primary-nav a:hover { background: var(--bg-alt); }
 .primary-nav a[aria-current="true"] { color: var(--on-primary-container); background: var(--primary-container); font-weight: 700; }
-.header-tools { display: flex; align-items: center; gap: var(--sp-2); }
+.header-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: var(--sp-3); } /* wraps only when text is enlarged and the three controls no longer fit in one row */
 .icon-btn.menu-btn { display: none; }
 .header-tools select.control { font-size: .95rem; }
 
@@ -164,11 +165,17 @@ textarea.control { resize: vertical; }
 .lang-card p { margin: 0; }
 .lang-level { color: var(--muted); font-size: .95rem; }
 .lang-cert { font-size: .9rem; }
-.lang-score { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-2) !important; font-size: .9rem; color: var(--muted); }
+.lang-score { display: flex; align-items: center; gap: var(--sp-2); margin-top: auto !important; padding-top: var(--sp-2); font-size: .9rem; color: var(--muted); } /* the card is a flex column that stretches to its row: auto pushes the score to the bottom edge, the padding keeps the old distance to the text above */
 .duo { flex: none; width: 1.1rem; height: 1.1rem; }
 .score-value { flex: none; white-space: nowrap; margin-left: auto; min-width: 2.6rem; padding: .05rem .6rem; text-align: center; font-size: 1rem; color: var(--text); background: var(--bg-alt); border: 1px solid var(--border); border-radius: 999px; font-variant-numeric: tabular-nums; }
-.chips.compact { gap: var(--sp-2); }
-.chips.compact li { padding: .25rem .8rem; font-size: .9375rem; font-weight: 500; }
+.chips.learning li { background: var(--primary-container); color: var(--on-primary-container); }
+.chips.learning + .meta { margin-bottom: var(--sp-1); }
+.skill-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--sp-3); margin-block: var(--sp-4); }
+.skill-cards li { padding: var(--sp-3) var(--sp-4); background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--r-md); line-height: 1.4; display: flex; flex-direction: column; gap: var(--sp-1); }
+.skill-cards strong { font-weight: 700; }
+.skill-cards span { color: var(--muted); font-size: .95rem; font-weight: 450; }
+.tags { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-block: var(--sp-4); }
+.tags li { padding: .2rem .75rem; font-size: .9375rem; font-weight: 500; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: 999px; }
 /* Justified chip rows: every full row stretches to both edges like a justified line of text. The invisible spacer soaks up the free space of the last row, so that row keeps its natural widths (like the last line of a paragraph). */
 .chips li { flex: 1 1 auto; text-align: center; }
 .chips::after { content: ""; flex: 999 1 0; min-width: 0; }
@@ -219,6 +226,17 @@ textarea.control { resize: vertical; }
 .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .turnstile-slot { margin-bottom: var(--sp-4); max-width: 100%; min-height: 65px; }
 .form-status { max-width: none; margin: 0 0 var(--sp-3); padding: var(--sp-3) var(--sp-4); font-weight: 600; background: var(--bg-alt); border-left: 4px solid currentColor; border-radius: var(--r-sm); }
+/* Problems with one field appear as small text under that field; problems with the security check appear under the widget. */
+.field-error { margin: 0; max-width: none; text-align: left; hyphens: manual; font-size: .875rem; font-weight: 500; line-height: 1.45; color: var(--danger); }
+.field-error:empty { display: none; }
+.verify-page .card { max-width: 40rem; margin-inline: auto; } /* confirmation page of the e-mail link */
+.field-hint { margin: 0; max-width: none; text-align: left; hyphens: manual; font-size: .875rem; line-height: 1.45; color: var(--muted); } /* permanent explanation under a field (the e-mail field) */
+.verify-page .card { max-width: 40rem; margin-inline: auto; } /* confirmation page of the e-mail link */
+.field-hint { margin: 0; max-width: none; text-align: left; hyphens: manual; font-size: .875rem; line-height: 1.45; color: var(--muted); } /* permanent explanation under a field (the e-mail field) */
+.field-error[data-kind="info"] { color: var(--muted); }
+.ts-field .turnstile-slot { margin-bottom: 0; }
+.ts-field .turnstile-slot[data-failed] { min-height: 0; } /* the widget cannot appear, so the space kept for it is released */
+.ts-field .field-error { padding: var(--sp-2) var(--sp-3); border-left: 3px solid currentColor; border-radius: var(--r-sm); background: var(--bg-alt); } /* a notice under the widget, so it is not mistaken for an error of the field above */
 .form-status:empty { display: none; }
 .form-status[data-kind="error"] { color: var(--danger); }
 .form-status[data-kind="success"] { color: var(--success); }
@@ -226,6 +244,16 @@ textarea.control { resize: vertical; }
 .site-footer { border-top: 1px solid var(--border); padding-block: var(--sp-6); background: var(--bg-alt); }
 .footer-inner { display: grid; gap: var(--sp-3); }
 .footer-notice { max-width: 72ch; }
+/* Small service icons in front of Cloudflare, Resend and Zoho in the privacy notices. The files are local (nothing is fetched from
+   the services); the icon is decorative, so the link text alone names the service for assistive technology. It scales with the
+   text, sits on the text's middle line and is never separated from the name. */
+a.provider-link { white-space: nowrap; }
+a.provider-link::before { content: ""; display: inline-block; width: 1.05em; height: 1.05em; margin-right: .32em; vertical-align: -.2em; background: center / cover no-repeat; border-radius: .26em; }
+a.provider-link[data-provider="cloudflare"]::before { background-image: url("../assets/icons/providers/cloudflare.png"); }
+a.provider-link[data-provider="resend"]::before { background-image: url("../assets/icons/providers/resend.png"); }
+a.provider-link[data-provider="duolingo"]::before { background-image: url("../assets/icons/languages/duolingo-score.svg"); }
+a.provider-link[data-provider="zoho"]::before { background-image: url("../assets/icons/providers/zoho.png"); background-color: #fff; background-size: 84%; box-shadow: 0 0 0 1px rgb(0 0 0 / .16); } /* transparent logo: white tile for both themes */
+@media (forced-colors: active) { a.provider-link::before { display: none; } } /* background images are not shown there; do not leave a gap */
 .footer-links { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); }
 
 /* Motion: reveal only when JS has enabled it --------------------------- */
@@ -239,10 +267,14 @@ textarea.control { resize: vertical; }
 
 /* Windows High Contrast / forced colours: tonal fills disappear, so components get a real border */
 @media (forced-colors: active) {
-  .btn, .icon-btn, .icon-link, .chips li, .tag, .banner, .form-status { border: 1px solid CanvasText; }
+  .btn, .icon-btn, .icon-link, .chips li, .skill-cards li, .tags li, .tag, .banner, .form-status { border: 1px solid CanvasText; }
   .primary-nav a[aria-current="true"] { border: 1px solid Highlight; }
 }
 /* Responsive ---------------------------------------------------------- */
+/* Slightly smaller type on tablet and mobile; desktop (> 62rem) is unchanged. */
+@media (max-width: 62rem) {
+  :root { --fs-body: .95rem; --fs-lead: 1.05rem; --fs-h2: clamp(1.5rem, 1.2rem + 1.5vw, 2rem); --fs-h3: 1.15rem; --fs-display: clamp(2.35rem, 1.5rem + 4.5vw, 4rem); }
+}
 @media (max-width: 62rem) {
   .toolbar { grid-template-columns: 1fr 1fr; }
   .toolbar .field:first-child { grid-column: 1 / -1; }
@@ -262,7 +294,7 @@ textarea.control { resize: vertical; }
 }
 @media (max-width: 30rem) {
   .header-inner { gap: var(--sp-2); }
-  .header-tools { gap: var(--sp-1); }
+  .header-tools { gap: var(--sp-2); }
   .header-tools select.control { max-width: 5.75rem; padding-inline: .4rem; }
   .brand { font-size: .95rem; }
   .hero-visual { max-width: 11.5rem; }

@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url';
 import { findPrivate, denylistLoaded } from './denylist.mjs';
 
 const ROOT = process.cwd();
-const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.xml': 'application/xml' };
+const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 const server = http.createServer((req, res) => {
   const p = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
   const file = join(ROOT, p === '' ? 'index.html' : p);
@@ -48,7 +48,8 @@ async function newPage(opts = {}) {
   return page;
 }
 if (!denylistLoaded) console.log('NOTE: tests/.private-denylist.txt not found; the private-word checks are reduced.');
-const test = async (name, fn) => { try { const d = await fn(); record(name, true, d || ''); } catch (e) { record(name, false, String(e.message).split('\n')[0]); } };
+const ONLY = (process.env.E2E_ONLY || '').split('|').filter(Boolean); // optional: run only tests whose name contains one of these fragments
+const test = async (name, fn) => { if (ONLY.length && !ONLY.some((s) => name.includes(s))) return; try { const d = await fn(); record(name, true, d || ''); } catch (e) { record(name, false, String(e.message).split('\n')[0]); } };
 
 await test('Page loads without console errors or CSP violations', async () => {
   const p = await newPage(); const probs = p.problems; await p.context().close();
@@ -71,12 +72,12 @@ await test('Language switch en/de/tr, html lang, persistence, ?lang', async () =
   await p.context().close();
 });
 
-await test('Theme toggle persists; follows OS preference initially', async () => {
+await test('Theme toggle persists; default is light even when the OS prefers dark', async () => {
   const p = await newPage({ colorScheme: 'dark' });
-  if ((await p.getAttribute('html', 'data-theme')) !== 'dark') throw new Error('OS dark not honoured');
+  if ((await p.getAttribute('html', 'data-theme')) !== 'light') throw new Error('default must be light, the OS theme is not followed');
   await p.click('[data-theme-toggle]');
   await p.reload();
-  if ((await p.getAttribute('html', 'data-theme')) !== 'light') throw new Error('choice not persisted');
+  if ((await p.getAttribute('html', 'data-theme')) !== 'dark') throw new Error('choice not persisted');
   await p.context().close();
 });
 
@@ -168,7 +169,7 @@ await test('Real credentials: every link is https and associated with its own ti
 });
 
 await test('Profile content: 3 jobs, 2 degrees, portrait image, no placeholders (en/de/tr)', async () => {
-  const exp = { en: 'May 2018 – present', de: 'Mai 2018 – heute', tr: 'Mayıs 2018 – devam ediyor' };
+  const exp = { en: 'May 2018 – present', de: 'Mai 2018 – heute', tr: 'Mayıs 2018 – Devam ediyor' };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: `/?lang=${lang}` });
     const jobs = await p.$$eval('#experience .job', (x) => x.length);
@@ -303,9 +304,9 @@ await test('Profile links: LinkedIn, GitHub, Credly exact and safe; no mail link
 
 await test('Employer descriptions and LinkedIn/GitHub line in en/de/tr', async () => {
   const want = {
-    en: { org: 'retail and information technology', more: 'Based on my public LinkedIn and GitHub profiles.' },
-    de: { org: 'Einzelhandels- und Informationstechnologiesektor', more: 'Basierend auf meinen öffentlichen LinkedIn- und GitHub-Profilen.' },
-    tr: { org: 'Perakende ve bilgi teknolojileri', more: 'Herkese açık LinkedIn ve GitHub profillerime dayanır.' },
+    en: { org: 'retail and information technology', more: 'Based on information from my public LinkedIn and GitHub profiles.' },
+    de: { org: 'Einzelhandel und Informationstechnologie', more: 'Basierend auf den Angaben in meinen öffentlichen LinkedIn- und GitHub-Profilen.' },
+    tr: { org: 'Perakende ve bilgi teknolojileri', more: 'Herkese açık LinkedIn ve GitHub profillerimde yer alan bilgilere dayanmaktadır.' },
   };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: `/?lang=${lang}` });
@@ -322,7 +323,7 @@ await test('Employer descriptions and LinkedIn/GitHub line in en/de/tr', async (
 });
 
 await test('Experience descriptions: the three supplied texts, exactly, in en/de/tr; metadata unchanged', async () => {
-  const want = {"en":{"1":"I deliver end-to-end IT support, combining strong technical troubleshooting skills with a proactive, customer-focused approach to ensure reliable systems and minimal downtime. I drive operational excellence through process improvement, cross-functional collaboration, technical project delivery, and efficient IT asset and vendor management.","2":"Delivered end-to-end IT support to approximately 4,700 employees across corporate offices, call centers, and manufacturing environments, ensuring operational continuity through rapid troubleshooting, infrastructure management, and VIP support. Managed the full IT asset lifecycle, strengthened security and access management, and contributed to infrastructure projects, technical documentation, and reliable production operations.","3":"Delivered dedicated IT support to exchange and trading floor personnel, maintaining the availability and performance of critical workstations and specialized trading equipment in a high-pressure financial environment. Minimized downtime through rapid hardware troubleshooting, proactive maintenance, and close collaboration with IT teams on upgrades, replacements, and business continuity."},"de":{"1":"Ich biete IT-Support aus einer Hand und verbinde fundierte technische Fehleranalyse mit einer proaktiven, kundenorientierten Arbeitsweise, damit Systeme zuverlässig laufen und Ausfallzeiten minimal bleiben. Operative Exzellenz fördere ich durch Prozessverbesserung, bereichsübergreifende Zusammenarbeit, die Umsetzung technischer Projekte sowie ein effizientes Management von IT-Assets und Dienstleistern.","2":"Umfassender IT-Support für rund 4.700 Beschäftigte in Büros, Callcentern und Fertigungsumgebungen; Sicherstellung der Betriebskontinuität durch schnelle Fehlerbehebung, Infrastrukturmanagement und VIP-Support. Verwaltung des gesamten Lebenszyklus der IT-Assets, Stärkung von Sicherheit und Zugriffsverwaltung sowie Beiträge zu Infrastrukturprojekten, technischer Dokumentation und einem zuverlässigen Produktionsbetrieb.","3":"Dedizierter IT-Support für das Personal an Börse und Handelsparkett: Sicherstellung von Verfügbarkeit und Leistung kritischer Arbeitsplätze und spezialisierter Handelstechnik in einem anspruchsvollen Finanzumfeld unter hohem Druck. Ausfallzeiten minimiert durch schnelle Hardware-Fehlerbehebung, vorausschauende Wartung und enge Zusammenarbeit mit IT-Teams bei Upgrades, Austausch und Geschäftskontinuität."},"tr":{"1":"Güçlü teknik sorun giderme becerilerimi proaktif ve müşteri odaklı bir yaklaşımla birleştirerek uçtan uca BT desteği sunuyorum; sistemlerin güvenilir çalışmasını ve kesintilerin en aza inmesini sağlıyorum. Süreç iyileştirme, departmanlar arası iş birliği, teknik proje yürütme ve verimli BT varlık ve tedarikçi yönetimi ile operasyonel mükemmelliği ileriye taşıyorum.","2":"Kurumsal ofisler, çağrı merkezleri ve üretim ortamlarındaki yaklaşık 4.700 çalışana uçtan uca BT desteği sundum; hızlı sorun giderme, altyapı yönetimi ve VIP desteği ile operasyonel sürekliliği sağladım. BT varlıklarının tüm yaşam döngüsünü yönettim, güvenlik ve erişim yönetimini güçlendirdim; altyapı projelerine, teknik dokümantasyona ve güvenilir üretim operasyonlarına katkıda bulundum.","3":"Borsa ve işlem salonu personeline özel BT desteği sağladım; yüksek baskılı bir finans ortamında kritik iş istasyonlarının ve özel işlem ekipmanlarının erişilebilirliğini ve performansını korudum. Hızlı donanım arıza tespiti, proaktif bakım ile yükseltme, değişim ve iş sürekliliği konularında BT ekipleriyle yakın iş birliği sayesinde kesinti süresini en aza indirdim."}};
+  const want = {"en":{"1":"I provide end-to-end IT support with a proactive, solution-oriented approach, focusing on resolving technical issues quickly and permanently, keeping systems running without interruption, and maintaining service continuity. I contribute to operational efficiency through process improvement, cross-department coordination, technical project management, IT asset lifecycle management, and vendor management.","2":"I provided end-to-end IT support to approximately 4,700 employees across corporate offices, call centers, and manufacturing facilities. I helped maintain operational continuity through fast troubleshooting, infrastructure management, and VIP user support. I managed the lifecycle of IT assets and improved security and access processes. I also worked on infrastructure projects, technical documentation, and initiatives that supported the reliable operation of production systems.","3":"I provided dedicated IT support to stock exchange and trading floor staff. In high-volume financial environments, I focused on maintaining the availability and performance of critical workstations and specialized trading equipment. I quickly identified hardware failures and worked with IT teams on proactive maintenance, system upgrades, change management, and business continuity, helping to minimize service disruptions."},"de":{"1":"Ich biete IT-Support aus einer Hand mit einer proaktiven, lösungsorientierten Arbeitsweise. Im Mittelpunkt stehen die schnelle und nachhaltige Behebung technischer Probleme, der störungsfreie Betrieb der Systeme und die Sicherung der Servicekontinuität. Durch Prozessverbesserung, bereichsübergreifende Koordination, technisches Projektmanagement, IT-Asset-Lifecycle-Management und Lieferantenmanagement trage ich zur Steigerung der betrieblichen Effizienz bei.","2":"Ich habe rund 4.700 Beschäftigte in Büros, Callcentern und Produktionsstätten umfassend im IT-Bereich unterstützt. Durch schnelle Fehlerbehebung, Infrastrukturmanagement und VIP-Support habe ich zur Sicherung des laufenden Betriebs beigetragen. Ich habe den Lebenszyklus der IT-Assets verwaltet und Sicherheits- und Zugriffsprozesse verbessert. Zudem war ich an Infrastrukturprojekten, technischer Dokumentation und Maßnahmen beteiligt, die den zuverlässigen Betrieb der Produktionssysteme unterstützten.","3":"Ich habe das Personal an Börse und Handelsparkett mit dediziertem IT-Support betreut. In Finanzumfeldern mit hohem Handelsaufkommen lag mein Schwerpunkt darauf, die Verfügbarkeit und Leistung kritischer Arbeitsplätze und spezieller Handelstechnik sicherzustellen. Hardwarefehler habe ich schnell erkannt und gemeinsam mit den IT-Teams vorausschauende Wartung, Systemupgrades, Änderungsmanagement und Geschäftskontinuität koordiniert, um Serviceunterbrechungen zu minimieren."},"tr":{"1":"Proaktif ve çözüm odaklı bir yaklaşımla uçtan uca BT desteği sağlıyor; teknik sorunların hızlı ve kalıcı biçimde giderilmesine, sistemlerin kesintisiz çalışmasına ve hizmet sürekliliğinin korunmasına odaklanıyorum. Süreç iyileştirme, departmanlar arası koordinasyon, teknik proje yönetimi, BT varlıklarının yaşam döngüsü ve tedarikçi yönetimi alanlarında operasyonel verimliliğin artırılmasına katkıda bulunuyorum.","2":"Kurumsal ofisler, çağrı merkezleri ve üretim tesislerinde görev yapan yaklaşık 4.700 çalışana uçtan uca BT desteği sundum. Hızlı sorun giderme, altyapı yönetimi ve VIP kullanıcı desteği aracılığıyla operasyonel sürekliliğin korunmasına katkıda bulundum. BT varlıklarının yaşam döngüsünü yönettim; güvenlik ve erişim süreçlerini geliştirdim. Ayrıca altyapı projeleri, teknik dokümantasyon ve üretim sistemlerinin güvenilir biçimde çalışmasını destekleyen çalışmalarda görev aldım.","3":"Borsa ve işlem salonu personeline özel BT desteği sağladım. Yoğun işlem temposuna sahip finansal ortamlarda kritik iş istasyonları ve özel işlem ekipmanlarının erişilebilirliğini ve performansını korumaya odaklandım. Donanım arızalarını hızla tespit ederek proaktif bakım, sistem yükseltmeleri, değişiklik yönetimi ve iş sürekliliği çalışmalarını BT ekipleriyle koordineli biçimde yürüttüm; hizmet kesintilerinin en aza indirilmesine katkıda bulundum."}};
   const meta = { en: ['An international company in the retail and information technology sectors', 'May 2018 – present', 'Istanbul, Türkiye · Hybrid'] };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
@@ -348,10 +349,11 @@ await test('Languages: six cards in order, Turkish native without score, Duoling
     await p.waitForFunction(() => [...document.querySelectorAll('.lang-list img')].every((i) => i.complete && i.naturalWidth > 0), null, { timeout: 5000 }).catch(() => {});
     const cards = await p.$$eval('.lang-card', (n) => n.map((c) => ({
       name: c.querySelector('.lang-name').textContent, level: c.querySelector('.lang-level').textContent,
-      score: c.querySelector('.score-value')?.textContent ?? null, cert: c.querySelector('.lang-cert')?.textContent ?? null,
+      score: c.querySelector('.score-value')?.textContent ?? null,
       imgs: [...c.querySelectorAll('img')].map((i) => ({ src: i.getAttribute('src'), alt: i.alt, ok: i.complete && i.naturalWidth > 0 })),
       scoreText: c.querySelector('.lang-score')?.textContent.replace(/\s+/g, ' ').trim() ?? '', other: [...c.querySelectorAll('.lang-name, .lang-level, .lang-score')].map((x) => x.textContent).join(' ') })));
-    const noteText = await p.textContent('#skills .lang-list + p');
+    const noteText = await p.textContent('#skills [data-i18n="lang.note"]');
+    const duoHref = await p.getAttribute('#skills [data-i18n="lang.note"] a.provider-link', 'href');
     await p.context().close();
     if (cards.length !== 6) throw new Error(lang + ': ' + cards.length + ' cards');
     cards.forEach((c, i) => {
@@ -364,22 +366,18 @@ await test('Languages: six cards in order, Turkish native without score, Duoling
       c.imgs.forEach((im) => { if (im.alt !== '' || !im.ok || !/^assets\/icons\/languages\/[\w-]+\.svg$/.test(im.src)) throw new Error(lang + ': icon problem ' + JSON.stringify(im)); });
       if (c.imgs.length !== (c.score ? 2 : 1)) throw new Error(lang + ': icon count for ' + c.name);
     });
-    const cert = cards[2].cert || '';
-    const certified = cert.split(/[.]\s*/).find((x) => /A2/.test(x)) || '';
-    const selfB1 = cert.split(/[.]\s*/).find((x) => /B1/.test(x)) || '';
-    if (!certified || /B1/.test(certified)) throw new Error(lang + ': A2 must be the certified level, not B1: ' + cert);
-    if (!selfB1 || /A2/.test(selfB1) || !/self-assessed|Selbsteinsch|kendi değerlendirme/.test(selfB1)) throw new Error(lang + ': B1 must be marked as self-assessed: ' + cert);
     if (/Professional working|Gute berufliche|Profesyonel çalışma/.test(cards[2].level)) throw new Error(lang + ': German must be limited working proficiency');
-    if (!noteText.includes(note[lang])) throw new Error(lang + ': disclaimer missing: ' + noteText);
+    if (noteText.includes(note[lang])) throw new Error(lang + ': disclaimer still present: ' + noteText);
+    if (duoHref !== 'https://www.duolingo.com/') throw new Error(lang + ': Duolingo link missing');
     if (/verified by Duolingo|von Duolingo (bestätigt|verifiziert)|Duolingo tarafından doğrulan/i.test(noteText)) throw new Error(lang + ': verification claim');
   }
 });
 
 await test('About: 17+ years heading and three paragraphs in en/de/tr, anonymous, no stale wording', async () => {
   const want = {
-    en: { h: 'IT Support & Infrastructure Professional | 17+ Years', p: ['IT Support Engineer at an international technology company with 17+ years of experience.', 'Skilled in end-user support, IT infrastructure, hardware deployments, asset lifecycle management, and vendor coordination, with a focus on resolving complex issues, minimizing downtime, and improving operational efficiency.', 'Currently expanding my skills in Python, Linux, AWS, and AI-assisted development to automate processes and build practical solutions that improve IT operations.'] },
-    de: { h: 'IT-Support- und Infrastruktur-Profi | 17+ Jahre', p: ['IT-Support-Engineer bei einem internationalen Technologieunternehmen mit über 17 Jahren Berufserfahrung.'] },
-    tr: { h: 'BT Destek ve Altyapı Profesyoneli | 17+ Yıl', p: ['Uluslararası bir teknoloji şirketinde, 17+ yıllık deneyime sahip BT Destek Mühendisiyim.'] },
+    en: { h: 'IT Support & Infrastructure Professional | 17+ Years of Experience', p: ['IT Support and Infrastructure professional with more than 17 years of experience at an international technology company.', 'I have experience in end-user support, IT infrastructure operations, hardware deployments, IT asset lifecycle management, and vendor coordination. My focus is on resolving complex technical issues, minimizing service disruptions, and improving operational efficiency.', 'I am building on this experience with work in Python, Linux, AWS, and AI-assisted software development to keep growing my technical skills. My goal is to develop practical solutions that automate IT processes, reduce operational workload, and increase efficiency.'] },
+    de: { h: 'IT-Support- und Infrastruktur-Profi | 17+ Jahre Erfahrung', p: ['IT-Support- und Infrastruktur-Profi mit über 17 Jahren Erfahrung bei einem internationalen Technologieunternehmen.', 'Ich habe Erfahrung in den Bereichen Endanwender-Support, Betrieb der IT-Infrastruktur, Hardware-Rollouts, IT-Asset-Lifecycle-Management und Lieferantenkoordination. Mein Schwerpunkt liegt darauf, komplexe technische Probleme zu lösen, Serviceunterbrechungen zu minimieren und die betriebliche Effizienz zu steigern.', 'Meine Erfahrung ergänze ich durch Projekte in Python, Linux, AWS und KI-gestützter Softwareentwicklung und baue meine technischen Kompetenzen kontinuierlich aus. Mein Ziel ist es, praxisnahe Lösungen zu entwickeln, die IT-Prozesse automatisieren, den operativen Aufwand senken und die Effizienz steigern.'] },
+    tr: { h: 'BT Destek ve Altyapı Profesyoneli | 17+ Yıl Deneyim', p: ['Uluslararası bir teknoloji şirketinde 17 yılı aşkın deneyime sahip bir BT Destek ve Altyapı profesyoneliyim.', 'Son kullanıcı desteği, BT altyapı operasyonları, donanım kurulumları, BT varlık yaşam döngüsü yönetimi ve tedarikçi koordinasyonu alanlarında deneyim sahibiyim. Karmaşık teknik sorunların çözülmesi, hizmet kesintilerinin en aza indirilmesi ve operasyonel verimliliğin artırılması konularına odaklanıyorum.', 'Mevcut deneyimimi Python, Linux, AWS ve yapay zekâ destekli yazılım geliştirme alanlarındaki çalışmalarla destekleyerek teknik yetkinliklerimi geliştirmeye devam ediyorum. Amacım, BT süreçlerini otomatikleştiren, operasyonel iş yükünü azaltan ve verimliliği artıran uygulanabilir çözümler geliştirmek.'] },
   };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
@@ -392,7 +390,7 @@ await test('About: 17+ years heading and three paragraphs in en/de/tr, anonymous
     want[lang].p.forEach((x, i) => { if (paras[i] !== x) throw new Error(lang + ': paragraph ' + i + ': ' + paras[i]); });
     const key = { en: ['end-user support', 'Python, Linux, AWS'], de: ['Lieferantenkoordination', 'Python, Linux, AWS'], tr: ['tedarikçi koordinasyonu', 'Python, Linux, AWS'] }[lang];
     if (!paras[1].includes(key[0]) || !paras[2].includes(key[1])) throw new Error(lang + ': paragraphs 2/3 wrong');
-    if (!/17\+/.test(h) || !paras[0].includes(lang === 'de' ? 'über 17' : '17+')) throw new Error(lang + ': 17+ missing');
+    if (!/17\+/.test(h) || !/17/.test(paras[0])) throw new Error(lang + ': 17+ missing');
     if (/\b(15|16|18|20)\+|\b1[5689] (years|Jahre|yıl)/i.test(all)) throw new Error(lang + ': other experience number');
     const priv = findPrivate(all); if (priv && priv.length) throw new Error(lang + ': private word: ' + priv);
     if (/B1|A2|Goethe/.test(all)) throw new Error(lang + ': language level text belongs in the language card, not About');
@@ -432,12 +430,16 @@ async function fillForm(p, over = {}) {
   await p.fill('#cf-subject', over.subject ?? 'Hello');
   await p.fill('#cf-message', over.message ?? 'A short test message.');
 }
-const PRIVACY = {
+const PRIVACY_BASE = {
   en: 'Contact form messages are processed through Cloudflare for bot protection and through Resend and Zoho for email delivery. Please do not submit sensitive personal information.',
   de: 'Nachrichten über das Kontaktformular werden zum Schutz vor Bots über Cloudflare und zur E-Mail-Zustellung über Resend und Zoho verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten.',
   tr: 'İletişim formu mesajları, botlara karşı koruma için Cloudflare, e-posta iletimi için Resend ve Zoho hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin.',
 };
-const SUCCESS = { en: 'Your message has been sent', de: 'Ihre Nachricht wurde gesendet', tr: 'Mesajınız gönderildi' };
+// The banner adds the temporary-storage sentence to the base disclosure; the footer has its own wording after the base disclosure.
+const PRIVACY_ADD = { en: ' Your message is stored temporarily, for up to 15 minutes, until you confirm your email address, and is then deleted.', de: ' Ihre Nachricht wird bis zur Bestätigung Ihrer E-Mail-Adresse höchstens 15 Minuten zwischengespeichert und danach gelöscht.', tr: ' Mesajınız, e-posta adresinizi onaylayana kadar en fazla 15 dakika geçici olarak saklanır ve sonra silinir.' };
+const PRIVACY = Object.fromEntries(Object.entries(PRIVACY_BASE).map(([l, v]) => [l, v + PRIVACY_ADD[l]]));
+const SUCCESS = { en: 'We sent a confirmation link to ada@example.org', de: 'Bestätigungslink an ada@example.org gesendet', tr: 'ada@example.org adresine bir onay bağlantısı gönderdik' };
+const EMAIL_HINT = { en: 'we email a confirmation link to this address', de: 'schicken wir einen Bestätigungslink an diese Adresse', tr: 'bu adrese bir onay bağlantısı göndeririz' };
 await test('Contact form: active in en/de/tr with the approved disclosure; nothing contacted or stored before interaction', async () => {
   const words = { en: ['Send message', 'Name'], de: ['Nachricht senden', 'Name'], tr: ['Mesajı gönder', 'Ad'] };
   for (const lang of ['en', 'de', 'tr']) {
@@ -448,7 +450,7 @@ await test('Contact form: active in en/de/tr with the approved disclosure; nothi
         disabled: [...f.querySelectorAll('input, textarea, button')].filter((c) => c.matches(':disabled')).length,
         labels: [...f.querySelectorAll('label')].map((l) => l.textContent.trim()), submitText: document.getElementById('cf-submit').textContent.trim(),
         privacy: document.getElementById('form-privacy').textContent.trim(), hp: { aria: document.querySelector('.hp').getAttribute('aria-hidden'), tab: document.getElementById('cf-website').tabIndex, rect: document.getElementById('cf-website').getBoundingClientRect().right },
-        live: document.getElementById('cf-status').getAttribute('role'), footer: document.querySelector('footer .footer-notice').textContent,
+        live: document.getElementById('cf-status').getAttribute('role'), hint: document.getElementById('cf-email-hint').textContent, hintId: document.getElementById('cf-email-hint').id, emailDesc: document.getElementById('cf-email').getAttribute('aria-describedby') || '', footer: document.querySelector('footer .footer-notice').textContent,
         storage: { local: Object.keys(localStorage), session: Object.keys(sessionStorage), cookie: document.cookie } };
     });
     const hosts = [...p.hosts]; const ts = p.tsLoaded; const api = p.apiCalls.length; const probs = p.problems; const html = await p.content();
@@ -457,7 +459,8 @@ await test('Contact form: active in en/de/tr with the approved disclosure; nothi
     if (info.disabled) throw new Error(lang + ': disabled controls');
     if (info.submitText !== words[lang][0] || info.labels[0] !== words[lang][1]) throw new Error(lang + ': labels not localized');
     if (info.privacy !== PRIVACY[lang]) throw new Error(lang + ': disclosure differs: ' + info.privacy);
-    if (!info.footer.includes(PRIVACY[lang])) throw new Error(lang + ': footer lacks disclosure');
+    if (!info.footer.includes(PRIVACY_BASE[lang])) throw new Error(lang + ': footer lacks disclosure');
+    if (!info.hint.includes(EMAIL_HINT[lang]) || info.hintId !== 'cf-email-hint' || !info.emailDesc.split(' ').includes('cf-email-hint')) throw new Error(lang + ': e-mail confirmation hint missing or not linked: ' + JSON.stringify([info.hint, info.emailDesc]));
     if (info.hp.aria !== 'true' || info.hp.tab !== -1 || info.hp.rect > 0) throw new Error(lang + ': honeypot not hidden: ' + JSON.stringify(info.hp));
     if (info.live !== 'status') throw new Error(lang + ': status region missing');
     if (ts || api || hosts.some((h) => h !== new URL(base).host)) throw new Error(lang + ': third-party/API contact before interaction: ' + hosts);
@@ -483,20 +486,116 @@ await test('Contact form: mocked successful submit (en/de/tr): Turnstile loads o
     const b = calls[0].body;
     if (!/^application\/json/.test(calls[0].headers['content-type'])) throw new Error('not JSON');
     if (b.name !== 'Ada Lovelace' || b.email !== 'ada@example.org' || b.subject !== 'Hello' || b.message !== 'A short test message.' || b.lang !== lang || b.token !== 'mock-token-1' || b.website !== '') throw new Error(lang + ': payload ' + JSON.stringify(b));
-    if (!(Date.now() - b.startedAt >= 3000) || 'idempotencyKey' in b) throw new Error(lang + ': startedAt / unexpected key');
+    if (!(Date.now() - b.startedAt >= 3000) || !(b.elapsedMs >= 3000) || 'idempotencyKey' in b) throw new Error(lang + ': startedAt / elapsedMs / unexpected key');
     if (after.name || after.message || after.kind !== 'success' || after.resets < 1 || after.busy !== 'false' || after.disabled) throw new Error(lang + ': state after success ' + JSON.stringify(after));
     if (probs.length) throw new Error(lang + ': CSP/console: ' + probs.join('|'));
+  }
+});
+await test('Contact form: the confirmation notice stays and follows the language; a new link can be requested after a minute (at most until the Worker says stop)', async () => {
+  const SECRET = 'R'.repeat(43);
+  const p = await contactPage('en', (r) => r.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify({ ok: true, pending: true, resend: SECRET }) }));
+  await p.clock.install(); // the minute and the 15 minutes pass in milliseconds
+  const resends = [];
+  let answer = { status: 200, body: { ok: true } };
+  await p.route('https://api.nuray.io/contact/resend', async (r) => {
+    if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
+    resends.push(r.request().postDataJSON());
+    await r.fulfill({ status: answer.status, headers: CORS, contentType: 'application/json', body: JSON.stringify(answer.body) });
+  });
+  await p.focus('#cf-name');
+  await p.waitForFunction(() => window.__ts && window.__ts.renders === 1);
+  await fillForm(p);
+  await p.clock.fastForward(4000);
+  await p.click('#cf-submit');
+  const text = () => p.evaluate(() => ({ s: document.getElementById('cf-status').textContent, kind: document.getElementById('cf-status').dataset.kind, hidden: document.getElementById('cf-resend').hidden, disabled: document.getElementById('cf-resend').disabled }));
+  await p.waitForFunction(() => /We sent a confirmation link to ada@example.org/.test(document.getElementById('cf-status').textContent));
+  let s = await text();
+  if (s.hidden || !s.disabled || s.kind !== 'success') throw new Error('the new-link button must appear but wait a minute: ' + JSON.stringify(s));
+  if (!/15 minutes/.test(s.s) || !/spam/.test(s.s)) throw new Error('notice must name the 15 minutes and the spam folder: ' + s.s);
+  await p.clock.fastForward(30000);
+  s = await text();
+  if (!/We sent a confirmation link/.test(s.s) || !s.disabled) throw new Error('the notice must stay (no timer) and the button must still wait: ' + JSON.stringify(s));
+  await p.evaluate(() => { const sel = document.querySelector('[data-lang-select]'); sel.value = 'de'; sel.dispatchEvent(new Event('change')); });
+  await p.waitForFunction(() => /Bestätigungslink an ada@example.org gesendet/.test(document.getElementById('cf-status').textContent));
+  await p.clock.fastForward(31000);
+  s = await text();
+  if (s.disabled) throw new Error('the button must be available after a minute');
+  await p.click('#cf-resend');
+  await p.waitForFunction(() => /neuer Bestätigungslink wurde an ada@example.org gesendet/.test(document.getElementById('cf-status').textContent));
+  s = await text();
+  if (resends.length !== 1 || resends[0].resend !== SECRET || Object.keys(resends[0]).length !== 1) throw new Error('resend request: ' + JSON.stringify(resends));
+  if (!s.disabled || s.hidden) throw new Error('after a new link the button waits again: ' + JSON.stringify(s));
+  answer = { status: 429, body: { ok: false, code: 'resend_limit' } };
+  await p.clock.fastForward(61000);
+  await p.click('#cf-resend');
+  await p.waitForFunction(() => /keine weiteren Links/.test(document.getElementById('cf-status').textContent));
+  s = await text();
+  if (!s.hidden) throw new Error('the button must disappear when no more links can be sent');
+  const probs = p.problems; await p.context().close();
+  if (probs.length) throw new Error('CSP/console: ' + probs.join('|'));
+});
+await test('Confirmation page: opening the link sends nothing; the button confirms once; invalid or missing tokens, network and server errors show translated messages', async () => {
+  const TOKEN = 'T'.repeat(43);
+  const open = async (lang, hash, answer) => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    const p = await ctx.newPage();
+    p.problems = []; p.posts = [];
+    p.on('console', (m) => { if (/Content Security Policy|Refused/i.test(m.text())) p.problems.push(m.text()); });
+    p.on('pageerror', (e) => p.problems.push(String(e)));
+    await p.route('https://api.nuray.io/contact/verify', async (r) => {
+      if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS });
+      p.posts.push(r.request().postDataJSON());
+      if (answer === 'abort') return r.abort();
+      await r.fulfill({ status: answer.status, headers: CORS, contentType: 'application/json', body: JSON.stringify(answer.body) });
+    });
+    await p.goto(base + '/verify.html?lang=' + lang + hash);
+    await p.waitForLoadState('networkidle');
+    return p;
+  };
+  const state = (p) => p.evaluate(() => ({ s: document.getElementById('verify-status').textContent.trim(), btn: document.getElementById('verify-btn').hidden, dis: document.getElementById('verify-btn').disabled, lang: document.documentElement.lang, title: document.title, h1: document.querySelector('h1').textContent, hash: location.hash, robots: document.querySelector('meta[name=robots]').content }));
+  // Success, in each language; nothing is sent when the page opens.
+  for (const [lang, ok, btn] of [['en', /confirmed and your message has been sent/, 'Confirm and send'], ['de', /Ihre E-Mail-Adresse ist bestätigt/, 'Bestätigen und senden'], ['tr', /E-posta adresiniz onaylandı/, 'Onayla ve gönder']]) {
+    const p = await open(lang, '#t=' + TOKEN, { status: 200, body: { ok: true } });
+    let s = await state(p);
+    if (p.posts.length || s.btn || s.lang !== lang || s.robots !== 'noindex') throw new Error(lang + ': the page must wait for the button: ' + JSON.stringify(s));
+    if (await p.textContent('#verify-btn') !== btn) throw new Error(lang + ': button text');
+    await p.click('#verify-btn');
+    await p.waitForFunction(() => document.getElementById('verify-status').dataset.kind === 'success');
+    s = await state(p);
+    const posts = p.posts; const probs = p.problems; await p.context().close();
+    if (!ok.test(s.s) || !s.btn || s.hash) throw new Error(lang + ': after success ' + JSON.stringify(s));
+    if (posts.length !== 1 || posts[0].token !== TOKEN || Object.keys(posts[0]).length !== 1) throw new Error(lang + ': request ' + JSON.stringify(posts));
+    if (probs.length) throw new Error(lang + ': CSP/console: ' + probs.join('|'));
+  }
+  // Missing, malformed, unknown or used tokens.
+  for (const [hash, answer] of [['', null], ['#t=short', null], ['#t=' + TOKEN + '&x=1', null], ['#t=' + TOKEN, { status: 400, body: { ok: false, code: 'invalid_token' } }]]) {
+    const p = await open('en', hash, answer);
+    if (answer) await p.click('#verify-btn');
+    await p.waitForFunction(() => /invalid, has already been used or has expired/.test(document.getElementById('verify-status').textContent));
+    const s = await state(p); const posts = p.posts.length; await p.context().close();
+    if (!s.btn || (answer ? posts !== 1 : posts !== 0)) throw new Error('invalid token (' + hash + '): ' + JSON.stringify([s.btn, posts]));
+  }
+  // Temporary problems keep the button, so the same link can be tried again.
+  for (const [answer, re] of [['abort', /connection failed/], [{ status: 429, body: { ok: false, code: 'rate_limited' } }, /Too many attempts/], [{ status: 502, body: { ok: false, code: 'server_error' } }, /could not be sent/]]) {
+    const p = await open('en', '#t=' + TOKEN, answer);
+    await p.click('#verify-btn');
+    await p.waitForFunction((src) => new RegExp(src).test(document.getElementById('verify-status').textContent), re.source);
+    const s = await state(p); await p.context().close();
+    if (s.btn || s.dis) throw new Error('the button must stay available after a temporary problem: ' + JSON.stringify(s));
   }
 });
 await test('Contact form: client validation, server error codes and network failure show translated messages; language change re-translates', async () => {
   const p = await contactPage('en', errApi(429, 'rate_limited'));
   await p.click('#cf-submit');
   if (p.apiCalls.length) throw new Error('invalid form was sent');
-  if (!/enter a valid name/.test(await p.textContent('#cf-status'))) throw new Error('name error missing');
-  if ((await p.getAttribute('#cf-name', 'aria-invalid')) !== 'true' || !(await p.evaluate(() => document.activeElement.id === 'cf-name'))) throw new Error('invalid field not marked/focused');
+  const fieldErrors = () => p.evaluate(() => Object.fromEntries(['name', 'email', 'subject', 'message'].map((f) => [f, document.getElementById('cf-' + f + '-error').textContent.trim()])));
+  let errs = await fieldErrors();
+  if (!/enter your name/.test(errs.name) || !/enter your email/.test(errs.email) || errs.subject || !/enter your message/.test(errs.message)) throw new Error('an empty form must show every missing field at once: ' + JSON.stringify(errs));
+  if ((await p.getAttribute('#cf-name', 'aria-invalid')) !== 'true' || !(await p.evaluate(() => document.activeElement.id === 'cf-name'))) throw new Error('first invalid field not marked/focused');
   await fillForm(p, { email: 'broken' });
   await p.click('#cf-submit');
-  if (!/valid email/.test(await p.textContent('#cf-status'))) throw new Error('email error missing');
+  errs = await fieldErrors();
+  if (errs.name || errs.message || !/valid email/.test(errs.email)) throw new Error('only the email should be flagged: ' + JSON.stringify(errs));
   await fillForm(p);
   await p.click('#cf-submit');
   await p.waitForFunction(() => /Too many attempts/.test(document.getElementById('cf-status').textContent));
@@ -507,13 +606,14 @@ await test('Contact form: client validation, server error codes and network fail
   if (removes < 1) throw new Error('widget not re-rendered after language change');
   await p.selectOption('#lang-select', 'tr');
   await p.waitForFunction(() => /Çok fazla deneme/.test(document.getElementById('cf-status').textContent));
-  const codes = [[400, 'captcha_failed', /Sicherheitsprüfung ist fehlgeschlagen|security check failed|doğrulaması başarısız/], [502, 'server_error', /gönderilemedi/], [409, 'in_progress', /zaten gönderiliyor/]];
+  // a refused security token is shown under the widget, everything else in the status box
+  const codes = [[400, 'captcha_failed', /Sicherheitsprüfung ist fehlgeschlagen|security check failed|doğrulaması başarısız/, '#cf-turnstile-msg'], [502, 'server_error', /gönderilemedi/, '#cf-status'], [409, 'in_progress', /zaten gönderiliyor/, '#cf-status']];
   await p.unroute(API_URL);
-  for (const [status, code, re] of codes) {
+  for (const [status, code, re, sel] of codes) {
     await p.route(API_URL, async (r) => { if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS }); await errApi(status, code)(r); });
     await p.click('#cf-submit');
-    await p.waitForFunction(() => document.getElementById('cf-status').textContent.length > 0 && !document.querySelector('#contact-form fieldset').disabled);
-    const txt = await p.textContent('#cf-status');
+    await p.waitForFunction((s) => document.querySelector(s).textContent.length > 0 && !document.querySelector('#contact-form fieldset').disabled, sel);
+    const txt = await p.textContent(sel);
     if (!re.test(txt)) throw new Error(code + ': ' + txt);
     await p.unroute(API_URL);
   }
@@ -521,6 +621,168 @@ await test('Contact form: client validation, server error codes and network fail
   await p.click('#cf-submit');
   await p.waitForFunction(() => /Bağlantı kurulamadı/.test(document.getElementById('cf-status').textContent));
   await p.context().close();
+});
+await test('Contact form validation: every problem appears at once, small, under its own field; fields update while the visitor corrects them; security-check problems have their own message', async () => {
+  const snap = (p) => p.evaluate(() => {
+    const f = {};
+    for (const name of ['name', 'email', 'subject', 'message']) {
+      const input = document.getElementById('cf-' + name); const msg = document.getElementById('cf-' + name + '-error');
+      f[name] = { text: msg.textContent.trim(), shown: msg.offsetParent !== null, invalid: input.getAttribute('aria-invalid') === 'true', described: input.getAttribute('aria-describedby'),
+        below: msg.previousElementSibling === (name === 'email' ? document.getElementById('cf-email-hint') : input), small: parseFloat(getComputedStyle(msg).fontSize) < parseFloat(getComputedStyle(input).fontSize) };
+    }
+    return { f, summary: document.getElementById('cf-status').textContent.trim(), ts: document.getElementById('cf-turnstile-msg').textContent.trim(), focus: document.activeElement.id };
+  });
+  const expectField = (s, name, re, label) => {
+    const x = s.f[name];
+    if (!re.test(x.text) || !x.shown || !x.invalid || x.described !== (name === 'email' ? 'cf-email-hint ' : '') + 'cf-' + name + '-error' || !x.below || !x.small) throw new Error(label + ': ' + name + ' ' + JSON.stringify(x));
+  };
+  const expectClean = (s, name, label) => {
+    const x = s.f[name];
+    if (x.text || x.shown || x.invalid || (name === 'email' ? x.described !== 'cf-email-hint' : x.described)) throw new Error(label + ': ' + name + ' should have no error ' + JSON.stringify(x));
+  };
+  const setApi = async (page, api) => { await page.unroute(API_URL); await page.route(API_URL, async (r) => { if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 204, headers: CORS }); await api(r); }); };
+
+  // 1. an empty form: everything that is missing is reported together; nothing is sent
+  let p = await contactPage('en', okApi);
+  await p.click('#cf-submit');
+  let s = await snap(p);
+  expectField(s, 'name', /enter your name/, 'empty form'); expectField(s, 'email', /enter your email/, 'empty form'); expectField(s, 'message', /enter your message/, 'empty form');
+  expectClean(s, 'subject', 'empty form');
+  if (!/highlighted fields/.test(s.summary) || s.focus !== 'cf-name' || p.apiCalls.length) throw new Error('empty form: ' + JSON.stringify({ summary: s.summary, focus: s.focus, calls: p.apiCalls.length }));
+  // 2. two different problems at once (invalid email, message too short); typing updates the messages without a new attempt
+  await p.fill('#cf-name', 'dsf'); await p.fill('#cf-email', 'sdf'); await p.fill('#cf-subject', 'sdf'); await p.fill('#cf-message', 'sdf');
+  s = await snap(p);
+  expectClean(s, 'name', 'typed'); expectField(s, 'email', /valid email/, 'typed'); expectClean(s, 'subject', 'typed'); expectField(s, 'message', /too short/, 'typed');
+  await p.click('#cf-submit');
+  s = await snap(p);
+  expectField(s, 'email', /valid email/, 'second attempt'); expectField(s, 'message', /too short/, 'second attempt');
+  if (s.focus !== 'cf-email' || p.apiCalls.length) throw new Error('second attempt: focus ' + s.focus + ', calls ' + p.apiCalls.length);
+  // 3. corrections update or remove the messages immediately
+  await p.fill('#cf-email', 'ada@example.org');
+  s = await snap(p);
+  expectClean(s, 'email', 'email fixed'); expectField(s, 'message', /too short/, 'email fixed');
+  if (!/highlighted fields/.test(s.summary)) throw new Error('the summary must stay while a problem remains');
+  await p.fill('#cf-message', '');
+  expectField(await snap(p), 'message', /enter your message/, 'message emptied');
+  await p.fill('#cf-message', 'This message is long enough now.');
+  s = await snap(p);
+  for (const name of ['name', 'email', 'subject', 'message']) expectClean(s, name, 'everything fixed');
+  if (s.summary) throw new Error('the summary must disappear once every problem is fixed: ' + s.summary);
+  // 4. after a first attempt, leaving a field checks it
+  await p.fill('#cf-name', ''); await p.focus('#cf-subject');
+  expectField(await snap(p), 'name', /enter your name/, 'name emptied and left');
+  // 5. a language change re-translates the messages on screen
+  await p.selectOption('#lang-select', 'de');
+  await p.waitForFunction(() => /Namen/.test(document.getElementById('cf-name-error').textContent), null, { timeout: 5000 }).catch(() => {});
+  s = await snap(p);
+  if (!/Namen/.test(s.f.name.text)) throw new Error('error not re-translated: ' + s.f.name.text); // the summary was already gone here: only the name field is flagged
+  await p.context().close();
+
+  // 6. a security-check problem has its own message under the widget, next to the field problems, never in the form summary
+  p = await contactPage('en', okApi);
+  await p.unroute(TS_URL + '*');
+  await p.route(TS_URL + '*', (r) => r.abort());
+  await p.focus('#cf-name');
+  await p.waitForFunction(() => /security check could not be loaded/.test(document.getElementById('cf-turnstile-msg').textContent));
+  s = await snap(p);
+  for (const name of ['name', 'email', 'subject', 'message']) expectClean(s, name, 'security problem only');
+  if (s.summary) throw new Error('a security-check problem must not use the form summary: ' + s.summary);
+  await p.click('#cf-submit');
+  s = await snap(p);
+  expectField(s, 'name', /enter your name/, 'both kinds'); expectField(s, 'email', /enter your email/, 'both kinds'); expectField(s, 'message', /enter your message/, 'both kinds');
+  if (!/highlighted fields/.test(s.summary) || !/security check could not be loaded/.test(s.ts)) throw new Error('both kinds must be visible together: ' + JSON.stringify({ summary: s.summary, ts: s.ts }));
+  if ((await p.evaluate(() => getComputedStyle(document.getElementById('cf-turnstile')).minHeight)) !== '0px') throw new Error('the space kept for a widget that cannot appear must be released');
+  await p.context().close();
+
+  // 7. refusals from the server are shown where they belong
+  p = await contactPage('en', errApi(400, 'validation', { fields: ['email', 'message'] }));
+  await fillForm(p);
+  await p.click('#cf-submit');
+  await p.waitForFunction(() => document.getElementById('cf-email-error').textContent.length > 0);
+  s = await snap(p);
+  expectField(s, 'email', /valid email/, 'server validation'); expectField(s, 'message', /meaningful message/, 'server validation'); expectClean(s, 'name', 'server validation');
+  if (!/highlighted fields/.test(s.summary) || s.ts) throw new Error('server validation: ' + JSON.stringify({ summary: s.summary, ts: s.ts }));
+  await p.focus('#cf-subject'); await p.focus('#cf-name'); // leaving the fields must not remove what the server said
+  expectField(await snap(p), 'email', /valid email/, 'server validation after leaving the field');
+  await setApi(p, errApi(400, 'validation', { fields: ['token'] }));
+  await p.click('#cf-submit');
+  await p.waitForFunction(() => document.getElementById('cf-turnstile-msg').textContent.length > 0);
+  s = await snap(p);
+  for (const name of ['name', 'email', 'subject', 'message']) expectClean(s, name, 'token refused');
+  if (s.summary || !/security check failed/.test(s.ts)) throw new Error('a refused token belongs under the widget: ' + JSON.stringify({ summary: s.summary, ts: s.ts }));
+  await p.context().close();
+
+  // 8. automated accessibility check of the error state, light and dark, on a phone (not a full audit)
+  const axeSrcLocal = readFileSync('node_modules/axe-core/axe.min.js', 'utf8');
+  for (const scheme of ['light', 'dark']) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 900 }, bypassCSP: true });
+    const page = await ctx.newPage();
+    await page.addInitScript((sch) => { try { localStorage.setItem('theme', sch); } catch (e) { /* ignore */ } }, scheme);
+    await page.route(TS_URL + '*', (r) => r.fulfill({ contentType: 'text/javascript', body: FAKE_TURNSTILE }));
+    await page.goto(base + '/?lang=en'); await page.waitForLoadState('networkidle');
+    await page.fill('#cf-name', 'dsf'); await page.fill('#cf-email', 'sdf'); await page.fill('#cf-message', 'sdf');
+    await page.click('#cf-submit');
+    await page.addScriptTag({ content: axeSrcLocal });
+    const res = await page.evaluate(() => axe.run(document.getElementById('contact-form'), { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'] }));
+    const over = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    await ctx.close();
+    if (res.violations.length) throw new Error(scheme + ' error state: ' + res.violations.map((v) => v.id + ' (' + v.nodes.length + ')').join(', '));
+    if (over > 0) throw new Error(scheme + ' error state: horizontal overflow ' + over);
+  }
+});
+await test('Slow connection: a stalled Turnstile script or an unfinished challenge never sends a request, the form unlocks with a message, and a retry works once the script arrives', async () => {
+  const open = async (routeTurnstile) => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
+    const p = await ctx.newPage();
+    p.posts = [];
+    await p.clock.install(); // timers are driven by the test, so the 20 s and 60 s waits take milliseconds
+    await p.route('https://api.nuray.io/contact', async (r) => {
+      if (r.request().method() === 'POST') p.posts.push(r.request().postDataJSON());
+      await r.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: '{"ok":true}' });
+    });
+    await p.route('https://challenges.cloudflare.com/**', routeTurnstile);
+    await p.goto(base + '/?lang=en', { waitUntil: 'domcontentloaded' });
+    await p.waitForSelector('#contact-form');
+    await fillForm(p);
+    await p.clock.fastForward(5000); // long enough for the minimum fill time
+    return { ctx, p };
+  };
+  const view = (p) => p.evaluate(() => ({ btn: document.getElementById('cf-submit').textContent.trim(), locked: document.querySelector('#contact-form fieldset').disabled, status: document.getElementById('cf-turnstile-msg').textContent.trim() }));
+  // 1. The script request stalls (hung connection).
+  let held;
+  const a = await open((r) => { held = r; });
+  await a.p.click('#cf-submit');
+  await a.p.waitForTimeout(300);
+  let s = await view(a.p);
+  if (!s.locked || !/Sending/.test(s.btn)) throw new Error('expected the sending state while the script loads: ' + JSON.stringify(s));
+  await a.p.clock.fastForward(21000);
+  await a.p.waitForTimeout(300);
+  s = await view(a.p);
+  if (s.locked || !/could not be loaded/.test(s.status)) throw new Error('a stalled script must unlock the form with a message: ' + JSON.stringify(s));
+  if (a.p.posts.length) throw new Error('a request reached the API without a Turnstile token');
+  // 2. The script finally arrives; the visitor retries.
+  await held.fulfill({ contentType: 'text/javascript', body: FAKE_TURNSTILE });
+  await a.p.waitForTimeout(200);
+  await a.p.click('#cf-submit');
+  for (let i = 0; i < 25 && !a.p.posts.length; i++) { await a.p.waitForTimeout(100); await a.p.clock.fastForward(100); }
+  const scripts = await a.p.evaluate(() => document.querySelectorAll('script[src*="challenges.cloudflare.com"]').length);
+  const posts = a.p.posts.slice();
+  await a.ctx.close();
+  if (posts.length !== 1 || !/^mock-token/.test(posts[0].token)) throw new Error('the retry must send exactly one request that carries a token: ' + JSON.stringify(posts.map((x) => x.token)));
+  if (scripts !== 1) throw new Error('the retry added another Turnstile script tag: ' + scripts);
+  // 3. The script loads, but the challenge never produces a token.
+  const b2 = await open((r) => r.fulfill({ contentType: 'text/javascript', body: 'window.turnstile = { render: () => "w1", reset() {}, remove() {} };' }));
+  await b2.p.click('#cf-submit');
+  await b2.p.waitForTimeout(400);
+  s = await view(b2.p);
+  if (!s.locked || !/Security check in progress/.test(s.status)) throw new Error('while the challenge runs the visitor must see that it is in progress: ' + JSON.stringify(s));
+  await b2.p.clock.fastForward(61000);
+  await b2.p.waitForTimeout(300);
+  s = await view(b2.p);
+  const sent = b2.p.posts.length;
+  await b2.ctx.close();
+  if (sent) throw new Error('a request reached the API without a Turnstile token');
+  if (s.locked || !/complete the security check/.test(s.status)) throw new Error('an unfinished challenge must unlock the form with a message: ' + JSON.stringify(s));
 });
 await test('Contact form: placeholder site key shows "unavailable" and sends nothing; failed Turnstile load shows a message', async () => {
   let p = await contactPage('en', okApi, { configured: false });
@@ -534,7 +796,7 @@ await test('Contact form: placeholder site key shows "unavailable" and sends not
   await p.route(TS_URL + '*', (r) => r.abort());
   await fillForm(p);
   await p.click('#cf-submit');
-  await p.waitForFunction(() => /security check could not be loaded/.test(document.getElementById('cf-status').textContent));
+  await p.waitForFunction(() => /security check could not be loaded/.test(document.getElementById('cf-turnstile-msg').textContent));
   if (p.apiCalls.length) throw new Error('request without Turnstile');
   await p.context().close();
 });
@@ -584,11 +846,31 @@ await test('Contact local dev harness: real Worker code, mocked Turnstile/Resend
     const resp = p.waitForResponse((r) => r.url() === 'http://localhost:8787/contact' && r.request().method() === 'POST');
     await p.click('#cf-submit');
     const r = await resp;
-    await p.waitForFunction(() => /Your message has been sent/.test(document.getElementById('cf-status').textContent));
-    await ctx.close();
+    await p.waitForFunction(() => /We sent a confirmation link to ada@example.org/.test(document.getElementById('cf-status').textContent));
     if (r.status() !== 200 || r.headers()['x-contact-dev-mock'] !== '1') throw new Error('unexpected API response ' + r.status());
+    // Nothing reaches the owner before the link is used.
+    if (/would send the owner notification/.test(out)) throw new Error('the owner was notified before the e-mail address was confirmed');
+    const link = (out.match(/confirmation link \(nothing is sent\): (\S+)/) || [])[1];
+    if (!link || !/^http:\/\/localhost:4173\/verify\.html\?contactDev=1&lang=en#t=[A-Za-z0-9_-]{43}$/.test(link)) throw new Error('confirmation link missing or malformed: ' + link);
+    // Opening the link does nothing by itself; the button confirms and delivers the message once.
+    const v = await ctx.newPage();
+    v.on('console', (m) => { if (/Content Security Policy|Refused/i.test(m.text())) problems.push(m.text()); });
+    await v.goto(link);
+    await v.waitForSelector('#verify-btn');
+    await v.waitForTimeout(400);
+    if (/would send the owner notification/.test(out)) throw new Error('opening the link delivered the message');
+    await v.click('#verify-btn');
+    await v.waitForFunction(() => /confirmed and your message has been sent/.test(document.getElementById('verify-status').textContent));
+    const hidden = await v.evaluate(() => ({ btn: document.getElementById('verify-btn').hidden, hash: location.hash }));
+    await v.goto(link);
+    await v.waitForSelector('#verify-btn');
+    await v.click('#verify-btn');
+    await v.waitForFunction(() => /invalid, has already been used or has expired/.test(document.getElementById('verify-status').textContent));
+    await ctx.close();
+    if (!hidden.btn || hidden.hash) throw new Error('the used link must disappear: ' + JSON.stringify(hidden));
     if (problems.length) throw new Error('CSP: ' + problems.join('|'));
-    if (!/MOCK\] Resend: would send the owner notification/.test(out) || !/acknowledgment/.test(out)) throw new Error('mock mail log missing');
+    await new Promise((r) => setTimeout(r, 300)); // the acknowledgment is sent right after the answer
+    if (out.match(/would send the owner notification/g)?.length !== 1 || !/would send the acknowledgment/.test(out)) throw new Error('expected exactly one owner notification and an acknowledgment after the confirmation');
   } finally { child.kill(); }
   return 'mocked Turnstile/Resend only: no real verification or email';
 });
@@ -678,7 +960,7 @@ await test('Chip lists are justified: every full row ends at the right edge of t
       return { n: ul.children.length, listRight: box.right, rights, over: ul.scrollWidth - ul.clientWidth };
     }));
     await p.context().close();
-    if (lists.length !== 3) throw new Error(lang + ' ' + width + ': expected 3 chip lists, found ' + lists.length);
+    if (lists.length !== 1) throw new Error(lang + ' ' + width + ': expected 1 chip list, found ' + lists.length);
     for (const l of lists) {
       if (l.over > 0) throw new Error(lang + ' ' + width + ': chip list overflows');
       l.rights.slice(0, -1).forEach((r, i) => { if (Math.abs(r - l.listRight) > 1.5) throw new Error(lang + ' ' + width + ': row ' + (i + 1) + ' of ' + l.n + ' chips ends ' + (l.listRight - r).toFixed(1) + 'px from the right edge'); });
@@ -782,12 +1064,40 @@ await test('Education: logos match universities, LinkedIn + official links, loca
   }
 });
 
+await test('Language cards: the Duolingo score row is pinned to the bottom of its card whatever the text length (en/de/tr; 320 to 1440 px)', async () => {
+  for (const lang of ['en', 'de', 'tr']) for (const width of [320, 390, 768, 1024, 1280, 1440]) {
+    const p = await newPage({ path: '/?lang=' + lang, viewport: { width, height: 900 } });
+    const cards = await p.evaluate(() => {
+      // Make one card clearly taller than its neighbours (as the German card was with its long note), so the test does not depend on the current texts.
+      const de = document.querySelector('.lang-name[data-i18n="lang.de.name"]').closest('.lang-card');
+      const note = document.createElement('p');
+      note.className = 'lang-cert';
+      note.textContent = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.';
+      de.querySelector('.lang-level').after(note);
+      return [...document.querySelectorAll('.lang-card')].map((li) => {
+        const cs = getComputedStyle(li); const box = li.getBoundingClientRect(); const score = li.querySelector('.lang-score');
+        return { name: li.querySelector('.lang-name').textContent, hasScore: Boolean(score), top: Math.round(box.top), height: Math.round(box.height),
+          gap: score ? box.bottom - parseFloat(cs.paddingBottom) - parseFloat(cs.borderBottomWidth) - score.getBoundingClientRect().bottom : null,
+          clear: score ? score.getBoundingClientRect().top - li.querySelector('.lang-level').getBoundingClientRect().bottom : null };
+      });
+    });
+    await p.context().close();
+    const where = lang + ' ' + width + ' px: ';
+    if (cards.length !== 6) throw new Error(where + 'expected 6 language cards, found ' + cards.length);
+    for (const c of cards.filter((x) => x.hasScore)) {
+      if (Math.abs(c.gap) > 1) throw new Error(where + c.name + ': the score row ends ' + c.gap.toFixed(1) + ' px above the bottom of the card');
+      if (c.clear < 4) throw new Error(where + c.name + ': the score row touches the text above it (' + c.clear.toFixed(1) + ' px)');
+    }
+    // the cards of one row must really differ in content, otherwise this test would prove nothing at this width
+    if (width >= 768 && new Set(cards.filter((x) => x.top === cards[1].top).map((x) => x.height)).size < 1) throw new Error(where + 'no card row to compare');
+  }
+});
 await test('Skill chips: 21 unique compact chips per language, German/Turkish labels, not interactive', async () => {
   const sample = { en: 'Network Engineering', de: 'Netzwerk-Engineering', tr: 'Ağ Mühendisliği' };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: `/?lang=${lang}` });
-    const chips = await p.$$eval('#skills .chips.compact li', (n) => n.map((x) => x.textContent.trim()));
-    const interactive = await p.$$eval('#skills .chips a, #skills .chips button, #skills .chips [tabindex]', (n) => n.length);
+    const chips = await p.$$eval('#skills .tags li', (n) => n.map((x) => x.textContent.trim()));
+    const interactive = await p.$$eval('#skills .tags a, #skills .tags button, #skills .tags [tabindex], #skills .skill-cards a, #skills .skill-cards button, #skills .chips a, #skills .chips button', (n) => n.length);
     const heads = await p.$$eval('#skills h3', (n) => n.map((x) => x.textContent.trim()));
     const body = await p.textContent('body');
     await p.context().close();
@@ -884,8 +1194,52 @@ await test('Keyboard: skip link is first tab stop', async () => {
   await p.context().close();
 });
 
+await test('Provider icons: Cloudflare, Resend and Zoho carry a small local icon on the left of the link text in both privacy notices (en/de/tr; 390/768/1280 px); no third-party request, no overflow, hidden in forced-colours mode', async () => {
+  const want = { cloudflare: ['Cloudflare', 'https://www.cloudflare.com/'], resend: ['Resend', 'https://resend.com/'], zoho: ['Zoho', 'https://www.zoho.com/'] };
+  for (const [provider] of Object.entries(want)) {
+    const res = await fetch(base + '/assets/icons/providers/' + provider + '.png');
+    const bytes = Buffer.from(await res.arrayBuffer());
+    if (res.status !== 200 || bytes.subarray(0, 4).toString('hex') !== '89504e47' || bytes.length > 20000) throw new Error(provider + ': icon file missing, not a PNG or too large');
+  }
+  for (const lang of ['en', 'de', 'tr']) for (const width of [390, 768, 1280]) {
+    const p = await newPage({ path: '/?lang=' + lang, viewport: { width, height: 900 } });
+    const info = await p.evaluate(() => {
+      const links = [];
+      for (const sel of ['#form-privacy', 'footer .footer-notice']) {
+        for (const a of document.querySelector(sel).querySelectorAll('a')) {
+          const cs = getComputedStyle(a, '::before'); const fs = parseFloat(getComputedStyle(a).fontSize);
+          links.push({ sel, text: a.textContent, provider: a.dataset.provider, cls: a.className, href: a.href, target: a.target, rel: a.rel, content: cs.content, display: cs.display,
+            w: parseFloat(cs.width) / fs, h: parseFloat(cs.height) / fs, va: parseFloat(cs.verticalAlign) / fs, img: cs.backgroundImage, nowrap: getComputedStyle(a).whiteSpace });
+        }
+      }
+      return { links, over: document.documentElement.scrollWidth - document.documentElement.clientWidth };
+    });
+    const external = [...p.hosts].filter((h) => h !== new URL(base).host);
+    await p.context().close();
+    const where = lang + ' ' + width + ' px: ';
+    if (info.links.length !== 6) throw new Error(where + 'expected 3 provider links in each notice, found ' + info.links.length);
+    info.links.forEach((l, i) => {
+      const provider = ['cloudflare', 'resend', 'zoho'][i % 3];
+      if (l.provider !== provider || l.text !== want[provider][0] || !/provider-link/.test(l.cls)) throw new Error(where + 'wrong link or order: ' + JSON.stringify(l));
+      if (l.href !== want[provider][1] || l.target !== '_blank' || !/noopener/.test(l.rel)) throw new Error(where + provider + ': link target changed: ' + l.href);
+      if (l.content !== '""') throw new Error(where + provider + ': the icon must not add text (decorative): ' + l.content);
+      if (l.display !== 'inline-block' || Math.abs(l.w - 1.05) > 0.03 || Math.abs(l.h - 1.05) > 0.03) throw new Error(where + provider + ': icon size ' + l.w.toFixed(2) + 'em x ' + l.h.toFixed(2) + 'em');
+      if (Math.abs(l.va + 0.2) > 0.03) throw new Error(where + provider + ': icon is not on the text middle line (vertical-align ' + l.va.toFixed(2) + 'em)');
+      if (!l.img.includes('/assets/icons/providers/' + provider + '.png')) throw new Error(where + provider + ': wrong icon file ' + l.img);
+      if (l.nowrap !== 'nowrap') throw new Error(where + provider + ': icon could be separated from its name');
+    });
+    if (info.over > 0) throw new Error(where + 'horizontal overflow ' + info.over);
+    if (external.length) throw new Error(where + 'third-party hosts contacted: ' + external.join(', '));
+  }
+  const ctx = await browser.newContext({ forcedColors: 'active', viewport: { width: 1280, height: 900 } });
+  const fp = await ctx.newPage();
+  await fp.goto(base + '/?lang=en'); await fp.waitForLoadState('networkidle');
+  const shown = await fp.evaluate(() => [...document.querySelectorAll('#form-privacy a.provider-link, footer .footer-notice a.provider-link')].map((a) => getComputedStyle(a, '::before').display));
+  await ctx.close();
+  if (shown.length !== 6 || shown.some((d) => d !== 'none')) throw new Error('forced-colours mode must not reserve a gap for the icons: ' + shown);
+});
 await test('Footer notice: exact text in en/de/tr (includes the contact-form processing disclosure), no legal page or legal links, legal.html is gone', async () => {
-  const want = {"en":"This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. Contact form messages are processed through Cloudflare for bot protection and through Resend and Zoho for email delivery. Please do not submit sensitive personal information. I use your message and email address only to reply to you. They may be kept for as long as needed for that purpose. If you would like your data deleted, you can contact me through the contact form. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.","de":"Diese Website ist mein persönlicher Online-Lebenslauf und mein Portfolio. Sie verwendet keine Benutzerkonten, Analyse- oder Werbedienste. Nachrichten über das Kontaktformular werden zum Schutz vor Bots über Cloudflare und zur E-Mail-Zustellung über Resend und Zoho verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten. Ich verwende Ihre Nachricht und E-Mail-Adresse ausschließlich, um Ihnen zu antworten. Sie können so lange gespeichert werden, wie es dafür erforderlich ist. Wenn Sie die Löschung Ihrer Daten wünschen, können Sie mich über das Kontaktformular kontaktieren. Sprach- und Designeinstellungen werden in Ihrem Browser gespeichert. Die Website wird über GitHub Pages gehostet; der Hosting-Anbieter kann technische Zugriffsdaten verarbeiten. Externe Links führen zu Websites Dritter.","tr":"Bu site kişisel çevrim içi CV ve portföyümdür. Kullanıcı hesabı, analiz veya reklam hizmeti kullanmaz. İletişim formu mesajları, botlara karşı koruma için Cloudflare, e-posta iletimi için Resend ve Zoho hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin. Mesajınızı ve e-posta adresinizi yalnızca size yanıt vermek için kullanabilirim. Bu amaç için gerekli olduğu sürece saklanabilir. Verilerinizin silinmesini isterseniz iletişim formu üzerinden benimle iletişime geçebilirsiniz. Dil ve tema tercihleri tarayıcınızda saklanır. Site GitHub Pages üzerinde barındırılır; barındırma sağlayıcısı teknik istek verilerini işleyebilir. Dış bağlantılar ilgili hizmetlerin kendi sitelerine yönlendirir."};
+  const want = {"en":"This site is my personal online CV and portfolio. It does not use user accounts, analytics, or advertising. Contact form messages are processed through Cloudflare for bot protection and through Resend and Zoho for email delivery. Please do not submit sensitive personal information. Until you confirm your email address, your message is stored temporarily for up to 15 minutes; it is deleted after delivery or when that time has passed. I use your message and email address only to reply to you. They may be kept for as long as needed for that purpose. If you would like your data deleted, you can contact me through the contact form. Language and theme preferences are stored in your browser. The site is hosted on GitHub Pages, whose hosting provider may process technical request data. External links lead to third-party websites.","de":"Diese Website ist mein persönlicher Online-Lebenslauf und mein Portfolio. Sie verwendet keine Benutzerkonten, Analyse- oder Werbedienste. Nachrichten über das Kontaktformular werden zum Schutz vor Bots über Cloudflare und zur E-Mail-Zustellung über Resend und Zoho verarbeitet. Bitte übermitteln Sie keine sensiblen personenbezogenen Daten. Bis zur Bestätigung Ihrer E-Mail-Adresse wird Ihre Nachricht höchstens 15 Minuten zwischengespeichert; sie wird nach der Zustellung oder nach Ablauf dieser Zeit gelöscht. Ich verwende Ihre Nachricht und E-Mail-Adresse ausschließlich, um Ihnen zu antworten. Sie können so lange gespeichert werden, wie es dafür erforderlich ist. Wenn Sie die Löschung Ihrer Daten wünschen, können Sie mich über das Kontaktformular kontaktieren. Sprach- und Designeinstellungen werden in Ihrem Browser gespeichert. Die Website wird über GitHub Pages gehostet; der Hosting-Anbieter kann technische Zugriffsdaten verarbeiten. Externe Links führen zu Websites Dritter.","tr":"Bu site kişisel çevrim içi CV ve portföyümdür. Kullanıcı hesabı, analiz veya reklam hizmeti kullanmaz. İletişim formu mesajları, botlara karşı koruma için Cloudflare, e-posta iletimi için Resend ve Zoho hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi göndermeyin. E-posta adresiniz onaylanana kadar mesajınız en fazla 15 dakika geçici olarak saklanır; iletildikten sonra veya bu süre dolunca silinir. Mesajınızı ve e-posta adresinizi yalnızca size yanıt vermek için kullanabilirim. Bu amaç için gerekli olduğu sürece saklanabilir. Verilerinizin silinmesini isterseniz iletişim formu üzerinden benimle iletişime geçebilirsiniz. Dil ve tema tercihleri tarayıcınızda saklanır. Site GitHub Pages üzerinde barındırılır; barındırma sağlayıcısı teknik istek verilerini işleyebilir. Dış bağlantılar ilgili hizmetlerin kendi sitelerine yönlendirir."};
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
     const d = await p.evaluate(() => ({ notice: document.querySelector('footer .footer-notice')?.textContent.trim(), links: [...document.querySelectorAll('a')].map((a) => a.getAttribute('href')), footerLinks: [...document.querySelectorAll('footer a')].map((a) => a.getAttribute('href')) }));

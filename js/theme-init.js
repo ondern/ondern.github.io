@@ -5,7 +5,7 @@
   try {
     var t = localStorage.getItem('theme');
     if (t !== 'light' && t !== 'dark') {
-      t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      t = 'light'; // default is always light; the OS theme is not followed
     }
     root.dataset.theme = t;
   } catch (e) {

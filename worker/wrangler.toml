@@ -22,3 +22,14 @@ namespace_id = "1001"
   [ratelimits.simple]
   limit = 5
   period = 60
+# Pending messages (15 minutes, until the visitor confirms the e-mail address) and counters (daily caps, per-address limits).
+# Create it once in worker/: npx wrangler d1 create nuray-contact   (then paste the database_id below)
+# Create the tables:         npx wrangler d1 execute nuray-contact --remote --file=schema.sql
+[[d1_databases]]
+binding = "DB"
+database_name = "nuray-contact"
+database_id = "0a9ac925-12d9-417f-9053-e778bf125874"
+
+# Hourly cleanup of expired rows (reading ignores them anyway).
+[triggers]
+crons = ["17 * * * *"]

@@ -8,6 +8,7 @@ export const getLang = () => current;
 
 // Provider names that become links inside elements marked with data-i18n-links.
 const PROVIDER_LINKS = {
+  Duolingo: 'https://www.duolingo.com/',
   Cloudflare: 'https://www.cloudflare.com/',
   Resend: 'https://resend.com/',
   Zoho: 'https://www.zoho.com',
@@ -24,6 +25,8 @@ function setTextWithLinks(el, text) {
     a.target = '_blank';
     a.rel = 'noopener';
     a.textContent = m[1];
+    a.className = 'provider-link';
+    a.dataset.provider = m[1].toLowerCase();
     nodes.push(a);
     last = m.index + m[0].length;
   }

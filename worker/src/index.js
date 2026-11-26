@@ -1,5 +1,12 @@
 // nuray-contact-api: receives contact-form submissions from nuray.io.
-// Mail flow: notification to CONTACT_RECIPIENT (Reply-To = visitor), then an acknowledgment from MAIL_FROM (noreply).
+// Flow with e-mail verification:
+//   POST /contact         validates the form and Turnstile, stores the message in D1 for 15 minutes under the SHA-256 of a random
+//                         token and mails the visitor a confirmation link (https://nuray.io/verify.html#t=<token>). Nothing reaches the owner yet.
+//   POST /contact/verify  the confirmation page posts the token; the row is consumed atomically (UPDATE ... RETURNING), so a link works
+//                         once. Then the notification goes to CONTACT_RECIPIENT (Reply-To = visitor) and a short acknowledgment to the visitor.
+//   POST /contact/resend  issues a new link for a pending message (60 s apart, at most 3 mails per message).
+// D1 (DB) holds the pending messages (deleted on delivery, on expiry by the purge, hourly by cron) and counters (daily caps, per-address limits).
+// Counter keys contain only SHA-256 digests of addresses, never an address or message text.
 // Secrets (RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_RECIPIENT) exist only as Worker secrets.
 // Nothing in this file logs visitor data, addresses, tokens or keys.
 
@@ -16,6 +23,18 @@ const LINK_RE = /(?:https?:\/\/|www\.)\S+/gi;
 const hasRepeat = (s) => new RegExp('([^\\s])\\1{' + MAX_REPEAT + ',}', 'u').test(s);
 const MIN_FILL_MS = 3000;
 const MAX_FILL_MS = 24 * 60 * 60 * 1000;
+const VERIFY_TTL_S = 15 * 60; // a confirmation link (and the stored message) lives 15 minutes
+const RESEND_COOLDOWN_S = 60; // minimum time between two confirmation mails for one message
+const MAX_MAILS_PER_MESSAGE = 3; // first mail plus two new links
+const ADDR_VERIFY_MAX = 5; // confirmation mails per address per 24 hours (protects third-party mailboxes and the Resend reputation)
+const ADDR_TTL_S = 24 * 60 * 60;
+const ACK_DAILY_MAX = 30; // automatic acknowledgments per UTC day in total
+const OWNER_DAILY_MAX = 30; // delivered messages per UTC day in total
+const VERIFY_DAILY_MAX = 40; // confirmation mails per UTC day in total (the three caps together stay below Resend's 100 mails per day)
+const DAY_TTL_S = 2 * 24 * 60 * 60;
+const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/; // 32 random bytes, base64url
+const VERIFY_URL = 'https://nuray.io/verify.html'; // can be overridden by the VERIFY_BASE_URL variable (local development)
+const TURNSTILE_ACTION = 'contact'; // must equal the 'action' option of the widget in js/contact.js
 const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 const RESEND_URL = 'https://api.resend.com/emails';
 const EXPECTED_HOSTNAMES = ['nuray.io', 'www.nuray.io'];
@@ -37,6 +56,22 @@ const ACK = {
     notice: 'Bu e-posta, noreply@nuray.io adresinden otomatik olarak gönderilmiştir. Lütfen bu iletiyi yanıtlamayınız. Bu adrese gönderilen yanıtlar okunmamakta ve işleme alınmamakta olup, e-posta sistemi tarafından kabul edilmeyerek göndericiye teslim edilemeden geri döndürülebilir.',
     subject: 'Mesajınız için teşekkürler',
     lines: () => ['Merhaba,', 'Benimle iletişime geçtiğiniz için teşekkür ederim. Mesajınız bana ulaştı. İş yoğunluğuma bağlı olarak en kısa sürede size geri dönüş yapmaya çalışacağım.', 'Saygılarımla,\nÖnder'],
+  },
+};
+
+// Confirmation mail: fixed text, never any visitor-supplied content (the form must not become a way to send arbitrary text to a third party).
+const VERIFY = {
+  en: {
+    subject: 'Please confirm your message',
+    lines: (url) => ['Hello,', 'Someone used the contact form on nuray.io with this email address. To make sure the address is yours, I need your confirmation before the message is delivered to me.', 'To confirm, open the link below and press "Confirm and send" on the page. The link is valid for 15 minutes and works only once.', url, 'If you did not send a message, simply ignore this email. Nothing is delivered unless you confirm.'],
+  },
+  de: {
+    subject: 'Bitte bestätigen Sie Ihre Nachricht',
+    lines: (url) => ['Guten Tag,', 'jemand hat mit dieser E-Mail-Adresse das Kontaktformular auf nuray.io benutzt. Damit sichergestellt ist, dass die Adresse Ihnen gehört, benötige ich Ihre Bestätigung, bevor die Nachricht bei mir zugestellt wird.', 'Zum Bestätigen öffnen Sie den folgenden Link und klicken auf der Seite auf „Bestätigen und senden“. Der Link ist 15 Minuten gültig und kann nur einmal verwendet werden.', url, 'Falls Sie keine Nachricht gesendet haben, ignorieren Sie diese E-Mail einfach. Ohne Ihre Bestätigung wird nichts zugestellt.'],
+  },
+  tr: {
+    subject: 'Lütfen mesajınızı onaylayın',
+    lines: (url) => ['Merhaba,', 'nuray.io iletişim formu bu e-posta adresiyle kullanıldı. Adresin size ait olduğundan emin olmak için, mesaj bana iletilmeden önce onayınıza ihtiyacım var.', 'Onaylamak için aşağıdaki bağlantıyı açın ve sayfadaki "Onayla ve gönder" düğmesine basın. Bağlantı 15 dakika geçerlidir ve yalnızca bir kez kullanılabilir.', url, 'Mesajı siz göndermediyseniz bu e-postayı yok sayabilirsiniz. Onaylamadığınız sürece hiçbir şey iletilmez.'],
   },
 };
 
@@ -88,6 +123,7 @@ function configProblems(env) {
   if (!env.CONTACT_RECIPIENT || !EMAIL_RE.test(String(env.CONTACT_RECIPIENT).trim())) bad.push('CONTACT_RECIPIENT');
   if (!env.MAIL_FROM || !FROM_RE.test(String(env.MAIL_FROM).trim())) bad.push('MAIL_FROM');
   if (!env.RATE_LIMITER || typeof env.RATE_LIMITER.limit !== 'function') bad.push('RATE_LIMITER');
+  if (!env.DB || typeof env.DB.prepare !== 'function') bad.push('DB');
   return bad;
 }
 
@@ -115,6 +151,7 @@ export function validate(input) {
     token: input.token.trim(),
     website: input.website || '',
     startedAt: Number(input.startedAt),
+    elapsedMs: typeof input.elapsedMs === 'number' ? input.elapsedMs : NaN,
   };
   if (!nameOk(v.name)) errors.push('name');
   if (!v.email || v.email.length > LIMITS.email || !EMAIL_RE.test(v.email) || v.email.includes('..')) errors.push('email');
@@ -139,8 +176,14 @@ async function verifyTurnstile(env, token, ip) {
     console.error('turnstile rejected:', codes.join(',') || 'no-code');
     return { ok: false };
   }
-  const hosts = (env.TURNSTILE_HOSTNAMES ? String(env.TURNSTILE_HOSTNAMES).split(',').map((h) => h.trim()) : EXPECTED_HOSTNAMES);
-  if (!hosts.includes(data.hostname)) { console.error('turnstile hostname mismatch'); return { ok: false }; }
+  // The token must have been issued for one of our own hostnames. A missing hostname never passes, and blank entries in the
+  // TURNSTILE_HOSTNAMES variable are ignored (an empty list falls back to the defaults).
+  const configured = env.TURNSTILE_HOSTNAMES ? String(env.TURNSTILE_HOSTNAMES).split(',').map((h) => h.trim().toLowerCase()).filter(Boolean) : [];
+  const hosts = configured.length ? configured : EXPECTED_HOSTNAMES;
+  const host = typeof data.hostname === 'string' ? data.hostname.trim().toLowerCase() : '';
+  if (!host || !hosts.includes(host)) { console.error('turnstile hostname mismatch'); return { ok: false }; }
+  // The token must come from our own widget action, so a token minted for another purpose cannot be replayed here.
+  if (data.action !== TURNSTILE_ACTION) { console.error('turnstile action mismatch'); return { ok: false }; }
   return { ok: true };
 }
 
@@ -157,12 +200,31 @@ async function sendMail(env, payload) {
 
 function ownerMail(env, v) {
   const subject = `Contact form: ${v.subject || v.name}`.slice(0, 200);
-  const text = [`Name: ${v.name}`, `Email: ${v.email}`, `Language: ${v.lang}`, v.subject ? `Subject: ${v.subject}` : null, '', v.message].filter((l) => l !== null).join('\n');
+  const text = [`Name: ${v.name}`, `Email: ${v.email} (confirmed by link)`, `Language: ${v.lang}`, v.subject ? `Subject: ${v.subject}` : null, '', v.message].filter((l) => l !== null).join('\n');
   const html = `<table role="presentation" cellpadding="4" style="font-family:sans-serif;font-size:14px"><tr><td><b>Name</b></td><td>${escapeHtml(v.name)}</td></tr>`
-    + `<tr><td><b>Email</b></td><td>${escapeHtml(v.email)}</td></tr><tr><td><b>Language</b></td><td>${escapeHtml(v.lang)}</td></tr>`
+    + `<tr><td><b>Email</b></td><td>${escapeHtml(v.email)} (confirmed by link)</td></tr><tr><td><b>Language</b></td><td>${escapeHtml(v.lang)}</td></tr>`
     + (v.subject ? `<tr><td><b>Subject</b></td><td>${escapeHtml(v.subject)}</td></tr>` : '')
     + `</table><p style="font-family:sans-serif;font-size:14px;white-space:pre-wrap">${escapeHtml(v.message)}</p>`;
   return { from: String(env.MAIL_FROM).trim(), to: [String(env.CONTACT_RECIPIENT).trim()], reply_to: v.email, subject, text, html };
+}
+
+function verifyUrl(env, lang, token) {
+  const u = new URL(env.VERIFY_BASE_URL ? String(env.VERIFY_BASE_URL) : VERIFY_URL);
+  u.searchParams.set('lang', lang);
+  u.hash = 't=' + token; // in the fragment: never sent to a server, a log or a Referer header
+  return u.toString();
+}
+
+function verifyMail(env, to, lang, token) {
+  const t = VERIFY[lang];
+  const url = verifyUrl(env, lang, token);
+  const lines = t.lines(url);
+  return {
+    from: String(env.MAIL_FROM).trim(), to: [to], subject: t.subject, text: [`*** ${ACK[lang].notice} ***`, ...lines].join('\n\n'),
+    html: `<div style="font-family:sans-serif;font-size:14px"><p style="margin:0 0 16px;padding:10px 12px;background:#fff4e5;border-left:4px solid #d97706;font-weight:bold">${escapeHtml(ACK[lang].notice)}</p>`
+      + lines.map((l) => (l === url ? `<p><a href="${escapeHtml(url)}">${escapeHtml(url)}</a></p>` : `<p>${escapeHtml(l)}</p>`)).join('') + '</div>',
+    headers: { 'Auto-Submitted': 'auto-generated' },
+  };
 }
 
 function ackMail(env, v) {
@@ -175,58 +237,282 @@ function ackMail(env, v) {
   };
 }
 
-async function handlePost(request, env, origin) {
-  const cors = corsHeaders(origin);
-  const reply = (status, code, extra) => fail(status, code, extra, cors);
+// Rate-limit key per client. IPv6 clients are grouped by their /64 prefix (one subscriber normally controls the whole /64, so
+// rotating addresses inside it must not bypass the limit); an IPv4-mapped IPv6 address counts as the IPv4 address.
+export function rateKey(ip) {
+  if (!ip) return 'unknown';
+  const s = String(ip).trim().toLowerCase().split('%')[0];
+  if (!s.includes(':')) return s;
+  const mapped = s.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
+  if (mapped) return mapped[1];
+  const halves = s.split('::');
+  if (halves.length > 2) return s;
+  let groups;
+  if (halves.length === 2) {
+    const head = halves[0] ? halves[0].split(':') : [];
+    const tail = halves[1] ? halves[1].split(':') : [];
+    if (head.length + tail.length > 7) return s;
+    groups = [...head, ...Array(8 - head.length - tail.length).fill('0'), ...tail];
+  } else groups = s.split(':');
+  if (groups.length !== 8 || groups.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return s;
+  return groups.slice(0, 4).map((g) => g.padStart(4, '0')).join(':') + '/64';
+}
 
+// Digest used for stored tokens and counter keys, so that neither a token, an address nor message text appears in a key.
+async function digest(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('nuray-contact:' + text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+const nowS = () => Math.floor(Date.now() / 1000);
+const dayKey = (name) => `${name}:${new Date().toISOString().slice(0, 10)}`;
+
+// 32 random bytes as base64url (43 characters, 256 bits). Only its digest is stored.
+function newToken() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Counters in D1. reserve() raises the counter atomically and answers false (after undoing its own increment) when the limit is reached.
+async function reserve(env, key, max, ttlS) {
+  const now = nowS();
+  const row = await env.DB.prepare(
+    'INSERT INTO counters (key, n, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET '
+    + 'n = CASE WHEN expires_at <= ? THEN 1 ELSE n + 1 END, expires_at = CASE WHEN expires_at <= ? THEN ? ELSE expires_at END RETURNING n',
+  ).bind(key, now + ttlS, now, now, now + ttlS).first();
+  if (row && Number(row.n) <= max) return true;
+  await release(env, key);
+  return false;
+}
+async function release(env, key) {
+  try { await env.DB.prepare('UPDATE counters SET n = MAX(n - 1, 0) WHERE key = ?').bind(key).run(); } catch (e) { console.error('d1 release failed'); }
+}
+async function peek(env, key) {
+  const row = await env.DB.prepare('SELECT n FROM counters WHERE key = ? AND expires_at > ?').bind(key, nowS()).first();
+  return row ? Number(row.n) : 0;
+}
+// Removes expired messages and counters (also run hourly by the cron trigger). Reading ignores expired rows anyway.
+export async function purge(env) {
+  try {
+    const now = nowS();
+    await env.DB.prepare('DELETE FROM pending WHERE expires_at <= ?').bind(now).run();
+    await env.DB.prepare('DELETE FROM counters WHERE expires_at <= ?').bind(now).run();
+  } catch (e) { console.error('purge failed'); }
+}
+
+async function trySend(env, payload) {
+  try { return await sendMail(env, payload); } catch (e) { return false; }
+}
+
+// Common checks of the three POST endpoints: configuration, content type and per-client rate limit. Returns a Response or null.
+async function guard(request, env, reply, limitName) {
   const bad = configProblems(env);
   if (bad.length) { console.error('contact-api misconfigured:', bad.join(',')); return reply(500, 'server_error'); }
-
   if (!/^application\/json\b/i.test(request.headers.get('Content-Type') || '')) return reply(415, 'bad_request');
-
   const ip = request.headers.get('CF-Connecting-IP') || '';
   try {
-    const { success } = await env.RATE_LIMITER.limit({ key: `contact:${ip || 'unknown'}` });
+    const { success } = await env.RATE_LIMITER.limit({ key: `${limitName}:${rateKey(ip)}` });
     if (!success) return reply(429, 'rate_limited');
   } catch (e) { console.error('rate limiter error'); return reply(500, 'server_error'); }
-
+  return null;
+}
+async function readJson(request) {
   let raw;
-  try { raw = await readBounded(request, MAX_BODY_BYTES); } catch (e) { return reply(400, 'bad_request'); }
-  if (raw === null) return reply(413, 'too_large');
-  let input;
-  try { input = JSON.parse(raw); } catch (e) { return reply(400, 'bad_request'); }
+  try { raw = await readBounded(request, MAX_BODY_BYTES); } catch (e) { return { status: 400, code: 'bad_request' }; }
+  if (raw === null) return { status: 413, code: 'too_large' };
+  try { return { input: JSON.parse(raw) }; } catch (e) { return { status: 400, code: 'bad_request' }; }
+}
 
-  const { value: v, errors } = validate(input);
+async function handlePost(request, env, origin, ctx) {
+  const cors = corsHeaders(origin);
+  const reply = (status, code, extra) => fail(status, code, extra, cors);
+  const refused = await guard(request, env, reply, 'contact');
+  if (refused) return refused;
+  const ip = request.headers.get('CF-Connecting-IP') || '';
+
+  const parsed = await readJson(request);
+  if (!('input' in parsed)) return reply(parsed.status, parsed.code);
+
+  const { value: v, errors } = validate(parsed.input);
   if (errors.length) return reply(400, 'validation', { fields: errors });
 
-  // Honeypot: pretend success so bots learn nothing.
-  if (v.website) return json(200, { ok: true }, cors);
+  // Honeypot: pretend success so bots learn nothing (no resend secret is returned).
+  if (v.website) return json(200, { ok: true, pending: true }, cors);
 
-  const age = Date.now() - v.startedAt;
-  if (!Number.isFinite(v.startedAt) || age < MIN_FILL_MS || age > MAX_FILL_MS) return reply(400, 'too_fast');
+  // Fill time. The page sends elapsedMs (a monotonic duration, so a wrong device clock cannot reject a real visitor);
+  // pages cached from before that change send only startedAt (a wall-clock time). Both come from the visitor, so this is a speed
+  // bump for simple bots, not a security boundary: the Turnstile check below is what keeps bots out.
+  const tooFast = Number.isFinite(v.elapsedMs)
+    ? v.elapsedMs < MIN_FILL_MS
+    : !Number.isFinite(v.startedAt) || Date.now() - v.startedAt < MIN_FILL_MS || Date.now() - v.startedAt > MAX_FILL_MS;
+  if (tooFast) return reply(400, 'too_fast');
 
+  // Global daily cap on confirmation mails, looked at before Siteverify so the visitor's token is not used up for nothing.
+  const verifyDay = dayKey('verifyday');
+  try { if ((await peek(env, verifyDay)) >= VERIFY_DAILY_MAX) return reply(429, 'rate_limited'); } catch (e) { console.error('d1 error'); return reply(500, 'server_error'); }
   let ts;
   try { ts = await verifyTurnstile(env, v.token, ip); } catch (e) { console.error('siteverify unreachable'); return reply(502, 'server_error'); }
   if (ts.error) { console.error('siteverify http error'); return reply(502, 'server_error'); }
   if (!ts.ok) return reply(400, 'captcha_failed');
 
-  // No KV: a Turnstile token is single-use, so Siteverify rejects a repeated submission of the same form.
-  // The page also locks the form while a request is running.
-  let ownerOk = false;
-  try { ownerOk = await sendMail(env, ownerMail(env, v)); } catch (e) { ownerOk = false; }
-  if (!ownerOk) { console.error('owner notification failed'); return reply(502, 'server_error'); }
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(purge(env));
 
-  // Acknowledgment only after the owner notification succeeded.
+  // Store the message for 15 minutes and mail the confirmation link. At most one pending message per address: a new submission
+  // replaces the earlier one (and its link stops working).
+  const emailHash = await digest('email:' + v.email);
+  const addrKey = 'addrv:' + emailHash;
+  let addrReserved = false;
+  let dayReserved = false;
+  const token = newToken();
+  const resend = newToken();
+  const tokenHash = await digest('token:' + token);
   try {
-    if (!(await sendMail(env, ackMail(env, v)))) console.error('acknowledgment failed');
-  } catch (e) { console.error('acknowledgment error'); }
+    if (!(await reserve(env, addrKey, ADDR_VERIFY_MAX, ADDR_TTL_S))) return reply(429, 'address_limit');
+    addrReserved = true;
+    if (!(await reserve(env, verifyDay, VERIFY_DAILY_MAX, DAY_TTL_S))) { await release(env, addrKey); return reply(429, 'rate_limited'); }
+    dayReserved = true;
+    const now = nowS();
+    await env.DB.prepare(
+      'INSERT INTO pending (token_hash, resend_hash, email_hash, name, email, subject, message, lang, expires_at, last_sent, mails, used) '
+      + 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0) ON CONFLICT(email_hash) DO UPDATE SET token_hash = excluded.token_hash, '
+      + 'resend_hash = excluded.resend_hash, name = excluded.name, email = excluded.email, subject = excluded.subject, message = excluded.message, '
+      + 'lang = excluded.lang, expires_at = excluded.expires_at, last_sent = excluded.last_sent, mails = 1, used = 0',
+    ).bind(tokenHash, await digest('token:' + resend), emailHash, v.name, v.email, v.subject, v.message, v.lang, now + VERIFY_TTL_S, now).run();
+  } catch (e) {
+    console.error('d1 error');
+    if (addrReserved) await release(env, addrKey);
+    if (dayReserved) await release(env, verifyDay);
+    return reply(500, 'server_error');
+  }
+  if (!(await trySend(env, verifyMail(env, v.email, v.lang, token)))) {
+    console.error('verification mail failed');
+    try { await env.DB.prepare('DELETE FROM pending WHERE token_hash = ?').bind(tokenHash).run(); } catch (e) { console.error('d1 error'); }
+    await release(env, addrKey);
+    await release(env, verifyDay);
+    return reply(502, 'server_error');
+  }
+  return json(200, { ok: true, pending: true, resend }, cors);
+}
 
+// The confirmation page posts the token from the link. The message is delivered only here, only for that token, only once.
+async function handleVerify(request, env, origin, ctx) {
+  const cors = corsHeaders(origin);
+  const reply = (status, code, extra) => fail(status, code, extra, cors);
+  const refused = await guard(request, env, reply, 'verify');
+  if (refused) return refused;
+  const parsed = await readJson(request);
+  if (!('input' in parsed)) return reply(parsed.status, parsed.code);
+  const token = parsed.input && typeof parsed.input === 'object' ? parsed.input.token : undefined;
+  if (typeof token !== 'string' || !TOKEN_RE.test(token)) return reply(400, 'invalid_token');
+  const tokenHash = await digest('token:' + token);
+
+  const ownerDay = dayKey('ownerday');
+  let row;
+  try {
+    if (!(await reserve(env, ownerDay, OWNER_DAILY_MAX, DAY_TTL_S))) return reply(429, 'rate_limited');
+    // Atomic: of two simultaneous requests with the same token only one gets the row.
+    row = await env.DB.prepare(
+      'UPDATE pending SET used = 1 WHERE token_hash = ? AND used = 0 AND expires_at > ? RETURNING name, email, subject, message, lang, email_hash',
+    ).bind(tokenHash, nowS()).first();
+  } catch (e) {
+    console.error('d1 error');
+    return reply(500, 'server_error');
+  }
+  if (!row) { await release(env, ownerDay); return reply(400, 'invalid_token'); }
+
+  const v = { name: row.name, email: row.email, subject: row.subject, message: row.message, lang: row.lang };
+  if (!(await trySend(env, ownerMail(env, v)))) {
+    console.error('owner notification failed');
+    try { await env.DB.prepare('UPDATE pending SET used = 0 WHERE token_hash = ?').bind(tokenHash).run(); } catch (e) { console.error('d1 error'); }
+    await release(env, ownerDay);
+    return reply(502, 'server_error');
+  }
+  try { await env.DB.prepare('DELETE FROM pending WHERE token_hash = ?').bind(tokenHash).run(); } catch (e) { console.error('d1 error'); }
+
+  // Short automatic acknowledgment, in the background. The address is now confirmed; the per-address (24 h) and daily limits remain
+  // to protect the mail quota. Any problem means "no acknowledgment"; the message itself has been delivered.
+  const ackKey = 'ack:' + row.email_hash;
+  const ackDay = dayKey('ackday');
+  const sendAck = async () => {
+    let addr = false;
+    let day = false;
+    try {
+      if (!(await reserve(env, ackKey, 1, ADDR_TTL_S))) return;
+      addr = true;
+      if (!(await reserve(env, ackDay, ACK_DAILY_MAX, DAY_TTL_S))) { await release(env, ackKey); return; }
+      day = true;
+      if (!(await trySend(env, ackMail(env, v)))) { console.error('acknowledgment failed'); await release(env, ackKey); await release(env, ackDay); }
+    } catch (e) {
+      console.error('acknowledgment error');
+      if (addr) await release(env, ackKey);
+      if (day) await release(env, ackDay);
+    }
+  };
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(sendAck()); else await sendAck();
   return json(200, { ok: true }, cors);
 }
 
-export async function handle(request, env) {
+// A new confirmation link for a message that is still waiting. The secret comes from the answer to the original submission
+// (kept in the page's memory only), so only the browser that passed Turnstile can ask.
+async function handleResend(request, env, origin) {
+  const cors = corsHeaders(origin);
+  const reply = (status, code, extra) => fail(status, code, extra, cors);
+  const refused = await guard(request, env, reply, 'resend');
+  if (refused) return refused;
+  const parsed = await readJson(request);
+  if (!('input' in parsed)) return reply(parsed.status, parsed.code);
+  const secret = parsed.input && typeof parsed.input === 'object' ? parsed.input.resend : undefined;
+  if (typeof secret !== 'string' || !TOKEN_RE.test(secret)) return reply(400, 'invalid_token');
+  const resendHash = await digest('token:' + secret);
+
+  const verifyDay = dayKey('verifyday');
+  let addrKey = '';
+  let addrReserved = false;
+  let dayReserved = false;
+  const undo = async () => { if (addrReserved) await release(env, addrKey); if (dayReserved) await release(env, verifyDay); };
+  const token = newToken();
+  const tokenHash = await digest('token:' + token);
+  let row;
+  let updated;
+  try {
+    const now = nowS();
+    row = await env.DB.prepare('SELECT token_hash, email, email_hash, lang, last_sent, mails FROM pending WHERE resend_hash = ? AND used = 0 AND expires_at > ?').bind(resendHash, now).first();
+    if (!row) return reply(400, 'invalid_token');
+    if (Number(row.mails) >= MAX_MAILS_PER_MESSAGE) return reply(429, 'resend_limit');
+    if (now - Number(row.last_sent) < RESEND_COOLDOWN_S) return reply(429, 'rate_limited');
+    addrKey = 'addrv:' + row.email_hash;
+    if (!(await reserve(env, addrKey, ADDR_VERIFY_MAX, ADDR_TTL_S))) return reply(429, 'address_limit');
+    addrReserved = true;
+    if (!(await reserve(env, verifyDay, VERIFY_DAILY_MAX, DAY_TTL_S))) { await undo(); return reply(429, 'rate_limited'); }
+    dayReserved = true;
+    // Atomic: the old link stops working; a parallel request that read the same row finds nothing to update.
+    updated = await env.DB.prepare(
+      'UPDATE pending SET token_hash = ?, last_sent = ?, mails = mails + 1, expires_at = ? WHERE resend_hash = ? AND token_hash = ? AND used = 0 AND mails < ? AND last_sent <= ? RETURNING mails',
+    ).bind(tokenHash, now, now + VERIFY_TTL_S, resendHash, row.token_hash, MAX_MAILS_PER_MESSAGE, now - RESEND_COOLDOWN_S).first();
+  } catch (e) {
+    console.error('d1 error');
+    await undo();
+    return reply(500, 'server_error');
+  }
+  if (!updated) { await undo(); return reply(429, 'rate_limited'); }
+  if (!(await trySend(env, verifyMail(env, row.email, row.lang, token)))) {
+    console.error('verification mail failed');
+    try {
+      await env.DB.prepare('UPDATE pending SET token_hash = ?, last_sent = ?, mails = mails - 1 WHERE token_hash = ?').bind(row.token_hash, row.last_sent, tokenHash).run();
+    } catch (e) { console.error('d1 error'); }
+    await undo();
+    return reply(502, 'server_error');
+  }
+  return json(200, { ok: true }, cors);
+}
+
+const ROUTES = { '/contact': handlePost, '/contact/verify': handleVerify, '/contact/resend': handleResend };
+
+export async function handle(request, env, ctx) {
   const url = new URL(request.url);
-  if (url.pathname !== '/contact') return fail(404, 'not_found');
+  const route = Object.hasOwn(ROUTES, url.pathname) ? ROUTES[url.pathname] : null;
+  if (!route) return fail(404, 'not_found');
   const origin = request.headers.get('Origin') || '';
   const allowed = ALLOWED_ORIGINS.includes(origin);
 
@@ -237,11 +523,15 @@ export async function handle(request, env) {
   if (request.method !== 'POST') return fail(405, 'method_not_allowed', {}, { Allow: 'POST, OPTIONS' });
   if (!allowed) return fail(403, 'forbidden_origin');
   try {
-    return await handlePost(request, env, origin);
+    return await route(request, env, origin, ctx);
   } catch (e) {
     console.error('unhandled contact-api error');
     return fail(500, 'server_error', {}, corsHeaders(origin));
   }
 }
 
-export default { fetch: (request, env) => handle(request, env) };
+export default {
+  fetch: (request, env, ctx) => handle(request, env, ctx),
+  // Hourly cron trigger: removes expired pending messages and counters.
+  scheduled: (event, env, ctx) => ctx.waitUntil(purge(env)),
+};
