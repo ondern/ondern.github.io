@@ -293,8 +293,9 @@ test('new link: unknown or malformed secret, expired message, failed mail', asyn
 
 test('confirmation mails per address are limited to 5 per day, and the answer says so', async () => {
   const env = makeEnv();
-  for (let i = 0; i < 5; i++) assert.equal((await handle(post(good({ message: `Message number ${i} here.` })), env)).status, 200);
-  const res = await handle(post(good({ message: 'Message number six here.' })), env);
+  const from = (i) => ({ headers: { 'CF-Connecting-IP': `198.51.100.${i + 1}` } }); // different clients, so the per-client cap does not interfere
+  for (let i = 0; i < 5; i++) assert.equal((await handle(post(good({ message: `Message number ${i} here.` }), from(i)), env)).status, 200);
+  const res = await handle(post(good({ message: 'Message number six here.' }), from(5)), env);
   assert.equal(res.status, 429);
   assert.equal((await body(res)).code, 'address_limit');
   assert.equal(calls.resend.length, 5);
@@ -369,7 +370,7 @@ test('the acknowledgment runs in the background: the answer does not wait for it
   const pending = [];
   const res = await Promise.race([verify(env, token, { waitUntil: (p) => pending.push(p) }), new Promise((_, rej) => setTimeout(() => rej(new Error('waited for the acknowledgment')), 1500))]);
   assert.equal(res.status, 200);
-  assert.equal(pending.length, 1);
+  assert.equal(pending.length, 2, 'purge and acknowledgment');
   release();
   await Promise.all(pending);
   assert.deepEqual(kinds(), ['verify', 'owner', 'ack']);
@@ -596,4 +597,20 @@ test('helpers', () => {
   assert.equal(escapeHtml(`<a href="x">'&`), '&lt;a href=&quot;x&quot;&gt;&#39;&amp;');
   assert.equal(clean('a\u0000b\r\nc'), 'a b c');
   assert.equal(clean('l1\r\nl2\u0007', { multiline: true }), 'l1\nl2');
+});
+
+test('one client may start only 3 confirmation mails per day; other clients are not affected', async () => {
+  const env = makeEnv();
+  for (let i = 0; i < 3; i++) assert.equal((await handle(post(good({ email: `c${i}@example.org` })), env)).status, 200);
+  const res = await handle(post(good({ email: 'c3@example.org' })), env);
+  assert.equal(res.status, 429);
+  assert.equal((await body(res)).code, 'rate_limited');
+  assert.equal(calls.resend.length, 3);
+  assert.equal((await handle(post(good({ email: 'd@example.org' }), { headers: { 'CF-Connecting-IP': '203.0.113.99' } }), env)).status, 200);
+});
+test('an unknown token on /contact/verify writes no counter rows', async () => {
+  const env = makeEnv();
+  const res = await verify(env, 'A'.repeat(43), { waitUntil: () => {} });
+  assert.equal(res.status, 400);
+  assert.equal(rows(env, 'SELECT * FROM counters').length, 0);
 });

@@ -30,6 +30,6 @@ binding = "DB"
 database_name = "nuray-contact"
 database_id = "0a9ac925-12d9-417f-9053-e778bf125874"
 
-# Hourly cleanup of expired rows (reading ignores them anyway).
+# Cleanup every 5 minutes of expired rows (reading ignores them anyway).
 [triggers]
-crons = ["17 * * * *"]
+crons = ["*/5 * * * *"]

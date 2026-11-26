@@ -31,6 +31,7 @@ const ADDR_TTL_S = 24 * 60 * 60;
 const ACK_DAILY_MAX = 30; // automatic acknowledgments per UTC day in total
 const OWNER_DAILY_MAX = 30; // delivered messages per UTC day in total
 const VERIFY_DAILY_MAX = 40; // confirmation mails per UTC day in total (the three caps together stay below Resend's 100 mails per day)
+const IP_DAILY_MAX = 3; // confirmation mails started per client (IPv4 address or IPv6 /64) per 24 hours, so one client cannot use up the daily cap
 const DAY_TTL_S = 2 * 24 * 60 * 60;
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/; // 32 random bytes, base64url
 const VERIFY_URL = 'https://nuray.io/verify.html'; // can be overridden by the VERIFY_BASE_URL variable (local development)
@@ -364,6 +365,8 @@ async function handlePost(request, env, origin, ctx) {
   const addrKey = 'addrv:' + emailHash;
   let addrReserved = false;
   let dayReserved = false;
+  let ipReserved = false;
+  const ipKey = 'ipv:' + (await digest('ip:' + rateKey(ip)));
   const token = newToken();
   const resend = newToken();
   const tokenHash = await digest('token:' + token);
@@ -372,6 +375,8 @@ async function handlePost(request, env, origin, ctx) {
     addrReserved = true;
     if (!(await reserve(env, verifyDay, VERIFY_DAILY_MAX, DAY_TTL_S))) { await release(env, addrKey); return reply(429, 'rate_limited'); }
     dayReserved = true;
+    if (!(await reserve(env, ipKey, IP_DAILY_MAX, ADDR_TTL_S))) { await release(env, addrKey); await release(env, verifyDay); return reply(429, 'rate_limited'); }
+    ipReserved = true;
     const now = nowS();
     await env.DB.prepare(
       'INSERT INTO pending (token_hash, resend_hash, email_hash, name, email, subject, message, lang, expires_at, last_sent, mails, used) '
@@ -383,6 +388,7 @@ async function handlePost(request, env, origin, ctx) {
     console.error('d1 error');
     if (addrReserved) await release(env, addrKey);
     if (dayReserved) await release(env, verifyDay);
+    if (ipReserved) await release(env, ipKey);
     return reply(500, 'server_error');
   }
   if (!(await trySend(env, verifyMail(env, v.email, v.lang, token)))) {
@@ -390,6 +396,7 @@ async function handlePost(request, env, origin, ctx) {
     try { await env.DB.prepare('DELETE FROM pending WHERE token_hash = ?').bind(tokenHash).run(); } catch (e) { console.error('d1 error'); }
     await release(env, addrKey);
     await release(env, verifyDay);
+    await release(env, ipKey);
     return reply(502, 'server_error');
   }
   return json(200, { ok: true, pending: true, resend }, cors);
@@ -409,17 +416,22 @@ async function handleVerify(request, env, origin, ctx) {
 
   const ownerDay = dayKey('ownerday');
   let row;
+  if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(purge(env));
   try {
-    if (!(await reserve(env, ownerDay, OWNER_DAILY_MAX, DAY_TTL_S))) return reply(429, 'rate_limited');
-    // Atomic: of two simultaneous requests with the same token only one gets the row.
+    // Atomic: of two simultaneous requests with the same token only one gets the row. This runs before the daily cap, so an
+    // unknown token costs no counter writes (an UPDATE that matches nothing writes no rows).
     row = await env.DB.prepare(
       'UPDATE pending SET used = 1 WHERE token_hash = ? AND used = 0 AND expires_at > ? RETURNING name, email, subject, message, lang, email_hash',
     ).bind(tokenHash, nowS()).first();
+    if (!row) return reply(400, 'invalid_token');
+    if (!(await reserve(env, ownerDay, OWNER_DAILY_MAX, DAY_TTL_S))) {
+      await env.DB.prepare('UPDATE pending SET used = 0 WHERE token_hash = ?').bind(tokenHash).run();
+      return reply(429, 'rate_limited');
+    }
   } catch (e) {
     console.error('d1 error');
     return reply(500, 'server_error');
   }
-  if (!row) { await release(env, ownerDay); return reply(400, 'invalid_token'); }
 
   const v = { name: row.name, email: row.email, subject: row.subject, message: row.message, lang: row.lang };
   if (!(await trySend(env, ownerMail(env, v)))) {
