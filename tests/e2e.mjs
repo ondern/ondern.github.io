@@ -305,9 +305,9 @@ await test('Profile links: LinkedIn, GitHub, Credly exact and safe; no mail link
 
 await test('Employer descriptions and LinkedIn/GitHub line in en/de/tr', async () => {
   const want = {
-    en: { org: 'retail and information technology', more: 'Based on information from my public LinkedIn and GitHub profiles.' },
-    de: { org: 'Einzelhandel und Informationstechnologie', more: 'Basierend auf den Angaben in meinen öffentlichen LinkedIn- und GitHub-Profilen.' },
-    tr: { org: 'Perakende ve bilgi teknolojileri', more: 'Herkese açık LinkedIn ve GitHub profillerimde yer alan bilgilere dayanmaktadır.' },
+    en: { org: 'retail and information technology', more: 'Based on my LinkedIn profile.' },
+    de: { org: 'Einzelhandel und Informationstechnologie', more: 'Basierend auf meinem LinkedIn-Profil.' },
+    tr: { org: 'Perakende ve bilgi teknolojileri', more: 'LinkedIn profilime dayanır.' },
   };
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: `/?lang=${lang}` });
