@@ -369,7 +369,7 @@ await test('Languages: six cards in order, Turkish native without score, Duoling
     });
     if (/Professional working|Gute berufliche|Profesyonel çalışma/.test(cards[2].level)) throw new Error(lang + ': German must be limited working proficiency');
     if (noteText.includes(note[lang])) throw new Error(lang + ': disclaimer still present: ' + noteText);
-    if (duoHref !== 'https://www.duolingo.com/') throw new Error(lang + ': Duolingo link missing');
+    if (duoHref !== 'https://www.duolingo.com/profile/nryndr?via=share_profile_qr') throw new Error(lang + ': Duolingo link missing');
     if (/verified by Duolingo|von Duolingo (bestätigt|verifiziert)|Duolingo tarafından doğrulan/i.test(noteText)) throw new Error(lang + ': verification claim');
   }
 });
@@ -997,7 +997,7 @@ await test('Forced colours (Windows High Contrast): buttons, icon links and tags
 await test('Navigation: "Certifications" label in en/de/tr (desktop and mobile), anchors and sections intact', async () => {
   const want = {
     en: ['About', 'Work Experience', 'Education', 'Skills', 'Certifications and Training', 'Projects', 'Contact'],
-    de: ['Über mich', 'Berufserfahrung', 'Ausbildung', 'Kompetenzen', 'Zertifizierungen und Weiterbildungen', 'Projekte', 'Kontakt'],
+    de: ['Über mich', 'Berufserfahrung', 'Ausbildung', 'Kompetenzen', 'Zertifizierungen', 'Projekte', 'Kontakt'],
     tr: ['Hakkımda', 'İş Deneyimi', 'Eğitim', 'Yetkinlikler', 'Sertifikalar ve Eğitimler', 'Projeler', 'İletişim'],
   };
   const hrefs = ['#about', '#experience', '#education', '#skills', '#credentials', '#projects', '#contact'];
