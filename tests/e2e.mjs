@@ -859,6 +859,7 @@ await test('Contact local dev harness: real Worker code, mocked Turnstile/Resend
     await v.click('#verify-btn');
     await v.waitForFunction(() => /confirmed and your message has been sent/.test(document.getElementById('verify-status').textContent));
     const hidden = await v.evaluate(() => ({ btn: document.getElementById('verify-btn').hidden, hash: location.hash }));
+    await v.goto('about:blank'); // same URL plus a hash would be a same-document navigation without a reload
     await v.goto(link);
     await v.waitForSelector('#verify-btn');
     await v.click('#verify-btn');

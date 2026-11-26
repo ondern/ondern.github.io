@@ -19,7 +19,7 @@ const env = {
 };
 // The Worker's outbound calls are replaced here. No request reaches Cloudflare or Resend.
 globalThis.fetch = async (url, init) => {
-  if (String(url).includes('siteverify')) { console.log('[MOCK] Turnstile Siteverify accepted any token (not a real verification)'); return new Response(JSON.stringify({ success: true, hostname: 'nuray.io' })); }
+  if (String(url).includes('siteverify')) { console.log('[MOCK] Turnstile Siteverify accepted any token (not a real verification)'); return new Response(JSON.stringify({ success: true, hostname: 'nuray.io', action: 'contact' })); }
   if (new URL(String(url)).hostname === 'api.resend.com') {
     const body = JSON.parse(init.body);
     const link = (body.text.match(/https?:\/\/\S+#t=\S+/) || [])[0];
