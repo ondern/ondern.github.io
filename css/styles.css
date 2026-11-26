@@ -83,6 +83,9 @@ main p { max-width: 50ch; } /* about 65-75 characters per line: ch is the width 
 :where(main p:not(.meta):not(.status)), .footer-notice, :where(.dialog p) { text-align: justify; text-justify: inter-word; hyphens: auto; }
 .lang-card p, .proj-card p { text-align: left; hyphens: manual; }
 .justify, .meta.justify, .lang-card p.justify { text-align: justify; text-justify: inter-word; hyphens: auto; }
+/* Duolingo note: desktop keeps its natural line length; tablet and mobile justify with controlled hyphenation. */
+.meta.justify[data-i18n="lang.note"] { max-width: none; text-align: left; hyphens: manual; }
+@media (max-width: 62rem) { .meta.justify[data-i18n="lang.note"] { text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; } }
 .card p { max-width: none; } /* paragraphs fill the card, so justified text lines up with both padding edges */
 #about .container > p, #experience .container > p, #credentials .reveal > p, #projects p.lead { max-width: none; }
 .timeline + .meta { margin-top: var(--sp-4); }
