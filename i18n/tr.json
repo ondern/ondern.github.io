@@ -169,7 +169,7 @@
   "contact.sending": "Gönderiliyor…",
   "contact.waiting": "Güvenlik doğrulaması sürüyor…",
   "contact.verify": "Güvenlik doğrulaması",
-  "contact.success": "Neredeyse tamam. {email} adresine bir onay bağlantısı gönderdik. Bağlantıyı 15 dakika içinde açıp onay düğmesine basın; mesajınız ancak bundan sonra iletilir. E-postayı göremezseniz lütfen spam klasörünüzü kontrol edin.",
+  "contact.success": "Neredeyse tamamlandı! {email} adresine bir doğrulama bağlantısı gönderdik. Lütfen 15 dakika içinde e-postadaki bağlantıyı açıp onayınızı verin. Mesajınız, e-posta adresinizi doğruladıktan sonra iletilecektir. E-postayı gelen kutunuzda bulamazsanız spam klasörünüzü kontrol edin.",
   "contact.err.fix": "Lütfen işaretli alanları kontrol edip tekrar deneyin.",
   "contact.err.nameRequired": "Lütfen adınızı girin.",
   "contact.err.name": "Lütfen geçerli bir ad girin (2 ile 80 karakter; yalnızca harf, boşluk, tire, nokta ve kesme işareti).",

@@ -436,7 +436,7 @@ const PRIVACY_BASE = {
   de: 'Ihre Nachricht wird über den Bot-Schutz von Cloudflare sowie die E-Mail-Dienste Resend und Zoho verarbeitet. Bitte teilen Sie keine sensiblen personenbezogenen Daten mit.',
   tr: 'Mesajınız, Cloudflare bot koruması ile Resend ve Zoho e-posta hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi paylaşmayın.',
 };
-const SUCCESS = { en: 'We sent a confirmation link to ada@example.org', de: 'Bestätigungslink an ada@example.org gesendet', tr: 'ada@example.org adresine bir onay bağlantısı gönderdik' };
+const SUCCESS = { en: 'We sent a confirmation link to ada@example.org', de: 'Bestätigungslink an ada@example.org gesendet', tr: 'ada@example.org adresine bir doğrulama bağlantısı gönderdik' };
 const EMAIL_HINT = { en: 'a confirmation link will be sent to this address', de: 'wird an diese Adresse ein Bestätigungslink geschickt', tr: 'bu adrese bir onay bağlantısı gönderilecektir' };
 await test('Contact form: active in en/de/tr with the approved disclosure; nothing contacted or stored before interaction', async () => {
   const words = { en: ['Send message', 'Name'], de: ['Nachricht senden', 'Name'], tr: ['Mesajı gönder', 'Ad'] };
