@@ -66,15 +66,15 @@ const ACK = {
 const VERIFY = {
   en: {
     subject: 'Please confirm your email address',
-    lines: (url) => ['Hello,', 'Someone used the contact form on nuray.io with this email address. To make sure the address is yours, I need you to confirm it before the message is delivered to me.', 'To confirm, open the link below and click "Confirm email address and send message" on the page. The link can be used only once and is valid for 15 minutes.', url, 'If you did not send a message, you can simply ignore this email. Nothing will be delivered unless you confirm.'],
+    lines: (url) => ['Hello,', 'Someone used the contact form on nuray.io with this email address. To make sure the address is yours, I need you to confirm it before the message is delivered to me.', 'To confirm, open the link below and click "Confirm email address and send message" on the page. The link can be used only once and is valid for 15 minutes.', url, 'If you did not send a message, you can simply ignore this email. Nothing will be delivered unless you confirm.', 'Kind regards,'],
   },
   de: {
     subject: 'Bitte bestätigen Sie Ihre E-Mail-Adresse',
-    lines: (url) => ['Guten Tag,', 'jemand hat mit dieser E-Mail-Adresse das Kontaktformular auf nuray.io benutzt. Damit sichergestellt ist, dass die Adresse Ihnen gehört, benötige ich Ihre Bestätigung, bevor die Nachricht bei mir zugestellt wird.', 'Zum Bestätigen öffnen Sie den folgenden Link und klicken auf der Seite auf „E-Mail-Adresse bestätigen und Nachricht senden“. Der Link kann nur einmal verwendet werden und ist 15 Minuten lang gültig.', url, 'Falls Sie keine Nachricht gesendet haben, können Sie diese E-Mail einfach ignorieren. Ohne Ihre Bestätigung wird nichts zugestellt.'],
+    lines: (url) => ['Guten Tag,', 'jemand hat mit dieser E-Mail-Adresse das Kontaktformular auf nuray.io benutzt. Damit sichergestellt ist, dass die Adresse Ihnen gehört, benötige ich Ihre Bestätigung, bevor die Nachricht bei mir zugestellt wird.', 'Zum Bestätigen öffnen Sie den folgenden Link und klicken auf der Seite auf „E-Mail-Adresse bestätigen und Nachricht senden“. Der Link kann nur einmal verwendet werden und ist 15 Minuten lang gültig.', url, 'Falls Sie keine Nachricht gesendet haben, können Sie diese E-Mail einfach ignorieren. Ohne Ihre Bestätigung wird nichts zugestellt.', 'Mit freundlichen Grüßen'],
   },
   tr: {
     subject: 'Lütfen e-posta adresinizi doğrulayın',
-    lines: (url) => ['Merhaba,', 'nuray.io içerisindeki iletişim formu bu e-posta adresiyle kullanıldı. Adresin size ait olduğundan emin olmak için mesaj bana iletilmeden önce e-posta adresinizi doğrulamanız gerekiyor.', 'Doğrulamak için aşağıdaki bağlantıyı açın ve sayfadaki "E-posta adresini doğrula ve mesajı gönder" düğmesine tıklayın. Bağlantı tek kullanımlıktır ve 15 dakika boyunca geçerlidir.', url, 'Bu mesajı siz göndermediyseniz bu e-postayı yok sayabilirsiniz. E-posta adresiniz doğrulanmadıkça mesaj iletilmez.'],
+    lines: (url) => ['Merhaba,', 'nuray.io içerisindeki iletişim formu bu e-posta adresiyle kullanıldı. Adresin size ait olduğundan emin olmak için mesaj bana iletilmeden önce e-posta adresinizi doğrulamanız gerekiyor.', 'Doğrulamak için aşağıdaki bağlantıyı açın ve sayfadaki "E-posta adresini doğrula ve mesajı gönder" düğmesine tıklayın. Bağlantı tek kullanımlıktır ve 15 dakika boyunca geçerlidir.', url, 'Bu mesajı siz göndermediyseniz bu e-postayı yok sayabilirsiniz. E-posta adresiniz doğrulanmadıkça mesaj iletilmez.', 'Saygılarımla,'],
   },
 };
 
