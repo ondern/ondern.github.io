@@ -165,7 +165,7 @@
   "contact.subject": "Betreff (optional)",
   "contact.message": "Nachricht",
   "contact.submit": "Nachricht senden",
-  "contact.privacy": "Ihre Nachricht wird über den Bot-Schutz von Cloudflare sowie die E-Mail-Dienste Resend und Zoho verarbeitet. Bitte teilen Sie keine sensiblen personenbezogenen Daten mit. Ihre Nachricht wird bis zur Bestätigung Ihrer E-Mail-Adresse höchstens 15 Minuten zwischengespeichert und danach gelöscht.",
+  "contact.privacy": "Ihre Nachricht wird über den Bot-Schutz von Cloudflare sowie die E-Mail-Dienste Resend und Zoho verarbeitet. Bitte teilen Sie keine sensiblen personenbezogenen Daten mit.",
   "contact.sending": "Wird gesendet …",
   "contact.waiting": "Sicherheitsprüfung läuft …",
   "contact.verify": "Sicherheitsprüfung",

@@ -165,7 +165,7 @@
   "contact.subject": "Konu (isteğe bağlı)",
   "contact.message": "Mesaj",
   "contact.submit": "Mesajı gönder",
-  "contact.privacy": "Mesajınız, Cloudflare bot koruması ile Resend ve Zoho e-posta hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi paylaşmayın. Mesajınız, e-posta adresinizi onaylayana kadar en fazla 15 dakika geçici olarak saklanır ve sonra silinir.",
+  "contact.privacy": "Mesajınız, Cloudflare bot koruması ile Resend ve Zoho e-posta hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi paylaşmayın.",
   "contact.sending": "Gönderiliyor…",
   "contact.waiting": "Güvenlik doğrulaması sürüyor…",
   "contact.verify": "Güvenlik doğrulaması",

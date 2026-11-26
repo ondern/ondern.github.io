@@ -165,7 +165,7 @@
   "contact.subject": "Subject (optional)",
   "contact.message": "Message",
   "contact.submit": "Send message",
-  "contact.privacy": "Your message is processed through Cloudflare bot protection and the Resend and Zoho email services. Please do not share sensitive personal information. Your message is stored temporarily, for up to 15 minutes, until you confirm your email address, and is then deleted.",
+  "contact.privacy": "Your message is processed through Cloudflare bot protection and the Resend and Zoho email services. Please do not share sensitive personal information.",
   "contact.sending": "Sending…",
   "contact.waiting": "Security check in progress…",
   "contact.verify": "Security check",
