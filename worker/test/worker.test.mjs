@@ -2,7 +2,7 @@
 // No real network or email.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import worker, { handle, escapeHtml, clean, rateKey, purge } from '../src/index.js';
+import worker, { handle, escapeHtml, clean, rateKey, subnetKey, verifyBase, purge } from '../src/index.js';
 import { makeD1 } from './d1-shim.mjs';
 
 const ORIGIN = 'https://nuray.io';
@@ -248,7 +248,9 @@ test('a second submission for an address with a live pending message changes not
   assert.notEqual(second.b.resend, first.b.resend);
   assert.equal(calls.resend.length, 1, 'no second mail');
   assert.equal(JSON.stringify(rows(env, 'SELECT * FROM pending')), before, 'the pending row is untouched');
-  assert.equal(JSON.stringify(rows(env, 'SELECT key, n FROM counters ORDER BY key')), countersBefore, 'no counter is spent');
+  const spent = (sql) => JSON.stringify(rows(env, sql));
+  assert.equal(spent("SELECT key, n FROM counters WHERE key LIKE 'addrv:%' OR key LIKE 'verifyday:%' ORDER BY key"), JSON.stringify(JSON.parse(countersBefore).filter((c) => /^(addrv|verifyday):/.test(c.key))), 'address and daily counters are not spent');
+  assert.ok(rows(env, "SELECT n FROM counters WHERE key LIKE 'ipv:%'")[0].n === 2, 'the client counter is spent, as for a real submission');
   assert.equal((await resendLink(env, second.b.resend)).status, 400, 'the made-up secret does nothing');
   assert.equal((await verify(env, first.token, { waitUntil: () => {} })).status, 200, 'the first link still works');
   assert.match(calls.resend.map((c) => c.body).find((m) => m.reply_to).text, /first version/);
@@ -332,15 +334,20 @@ test('new link: unknown or malformed secret, expired message, failed mail', asyn
   assert.equal((await resendLink(e2, s2.b.resend)).status, 400);
 });
 
-test('confirmation mails per address are limited to 5 per day, and the answer says so', async () => {
+test('confirmation mails per address are limited to 5 per day; over the limit the answer looks like success and nothing is sent', async () => {
   const env = makeEnv();
-  const from = (i) => ({ headers: { 'CF-Connecting-IP': `198.51.100.${i + 1}` } }); // different clients, so the per-client cap does not interfere
+  const from = (i) => ({ headers: { 'CF-Connecting-IP': `198.51.${100 + i}.1` } }); // different networks, so the client and network caps do not interfere
   const expire = () => env.DB.raw.exec('UPDATE pending SET expires_at = 1'); // a live pending message would block the next submission
   for (let i = 0; i < 5; i++) { assert.equal((await handle(post(good({ message: `Message number ${i} here.` }), from(i)), env)).status, 200); expire(); }
+  const fresh = await body(await handle(post(good({ email: 'fresh@example.org' }), from(6)), env));
   const res = await handle(post(good({ message: 'Message number six here.' }), from(5)), env);
-  assert.equal(res.status, 429);
-  assert.equal((await body(res)).code, 'address_limit');
-  assert.equal(calls.resend.length, 5);
+  assert.equal(res.status, 200);
+  const b = await body(res);
+  assert.deepEqual(Object.keys(b).sort(), Object.keys(fresh).sort(), 'same answer shape as a real submission');
+  assert.match(b.resend, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(calls.resend.length, 6, 'no mail for the address over its limit');
+  assert.equal(rows(env, "SELECT n FROM counters WHERE key LIKE 'addrv:%' ORDER BY n DESC")[0].n, 5);
+  assert.equal((await resendLink(env, b.resend)).status, 400, 'the made-up secret does nothing');
   assert.equal((await handle(post(good({ email: 'other@example.org' })), env)).status, 200, 'other addresses are not affected');
 });
 
@@ -601,6 +608,35 @@ test('HTML email escapes user content; header fields lose line breaks', async ()
   assert.ok(owner.html.includes('&lt;script&gt;'));
   assert.ok(owner.html.includes('&amp;'));
   assert.ok(!/[\r\n]/.test(owner.subject));
+});
+
+test('VERIFY_BASE_URL is ignored unless it points to a local page', () => {
+  for (const bad of ['https://evil.example/verify.html', 'http://evil.example/', 'https://localhost.evil.example/', 'http://user:pw@localhost/', 'javascript:alert(1)', 'not a url', 'https://localhost:4173/verify.html']) {
+    assert.equal(verifyBase({ VERIFY_BASE_URL: bad }), 'https://nuray.io/verify.html', bad);
+  }
+  assert.equal(verifyBase({}), 'https://nuray.io/verify.html');
+  assert.equal(verifyBase({ VERIFY_BASE_URL: 'http://127.0.0.1:4173/verify.html' }), 'http://127.0.0.1:4173/verify.html');
+});
+
+test('a production-looking VERIFY_BASE_URL cannot redirect the confirmation link', async () => {
+  await handle(post(good({ lang: 'en' })), makeEnv({ VERIFY_BASE_URL: 'https://evil.example/verify.html' }));
+  assert.match(calls.resend[0].body.text, /https:\/\/nuray\.io\/verify\.html\?lang=en#t=[A-Za-z0-9_-]{43}/);
+  assert.ok(!calls.resend[0].body.text.includes('evil.example'));
+});
+
+test('per-network cap: IPv4 /24 and IPv6 /48 share 6 confirmation mails per 24 hours', async () => {
+  assert.equal(subnetKey('203.0.113.7'), '203.0.113.0/24');
+  assert.equal(subnetKey('::ffff:203.0.113.9'), '203.0.113.0/24');
+  assert.equal(subnetKey('2001:db8:1:2:3::4'), '2001:0db8:0001::/48');
+  assert.equal(subnetKey('2001:db8:1:ffff::1'), '2001:0db8:0001::/48');
+  const env = makeEnv();
+  const at = (i) => ({ headers: { 'CF-Connecting-IP': `203.0.113.${10 + i}` } }); // one network, different clients
+  for (let i = 0; i < 6; i++) assert.equal((await handle(post(good({ email: `n${i}@example.org` }), at(i)), env)).status, 200, String(i));
+  const res = await handle(post(good({ email: 'n6@example.org' }), at(6)), env);
+  assert.equal(res.status, 429);
+  assert.equal((await body(res)).code, 'rate_limited');
+  assert.equal(calls.resend.length, 6);
+  assert.equal((await handle(post(good({ email: 'n7@example.org' }), { headers: { 'CF-Connecting-IP': '198.51.100.1' } }), env)).status, 200, 'other networks are not affected');
 });
 
 test('verification link base can be overridden for local development; the token stays in the fragment', async () => {

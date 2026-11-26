@@ -6,10 +6,12 @@ A message is delivered only after the visitor has confirmed the e-mail address b
 ## Flow
 1. `POST /contact`: checks origin, content type, body size, fields and language; rate-limits per client (IPv6 by /64 prefix);
    checks the honeypot and minimum fill time; verifies the Turnstile token with Siteverify (hostname and action `contact`);
-   then stores the message in D1 for 15 minutes under the SHA-256 of a random token (32 bytes, 256 bit) and mails the visitor
+   then stores the message in D1 for 15 minutes under an HMAC-SHA256 digest (keyed with `DIGEST_PEPPER`) of a random token (32 bytes, 256 bit) and mails the visitor
    a confirmation link `https://nuray.io/verify.html?lang=xx#t=<token>` from `MAIL_FROM`. The mail contains fixed text only, never the
    visitor's name, subject or message. The answer is `{ ok: true, pending: true, resend: "<secret>" }`; nothing reaches the owner yet.
-   One pending message per address: while it is live, a new submission for the same address changes nothing and sends no mail, but gets the same answer as a normal one (so the answer reveals nothing about the address).
+   The answer never depends on the address. While a message for the address is still pending, or the address has had 5 confirmation
+   mails in 24 hours, a new submission changes nothing and sends no mail, but gets the same answer as a normal one. The client and
+   network counters are spent as for a real submission.
 2. `verify.html` (static page): opening the link does nothing. The button posts the token to `POST /contact/verify`.
 3. `POST /contact/verify` `{ token }`: consumes the row atomically (`UPDATE ... SET used = <now> WHERE token_hash = ? AND (used = 0 OR
    used <= now - 60) AND expires_at > now RETURNING ...`), so a link works once and only for its own message, even for two simultaneous clicks. Then the
@@ -19,18 +21,19 @@ A message is delivered only after the visitor has confirmed the e-mail address b
 4. `POST /contact/resend` `{ resend }`: a new link for a pending message (the secret comes from the answer of step 1 and lives only in the
    page's memory). At least 60 seconds apart, at most 3 mails per message; the old link stops working and the 15 minutes start again.
 Responses are `{ "ok": true }` or `{ "ok": false, "code": "..." }` (`validation`, `captcha_failed`, `too_fast`, `rate_limited`,
-`address_limit`, `resend_limit`, `invalid_token`, `server_error`, ...). Messages shown to visitors are translated in the website, not here.
+`address_limit` (only from `/contact/resend`), `resend_limit`, `invalid_token`, `server_error`, ...). Messages shown to visitors are translated in the website, not here.
 Nothing about visitors is logged.
 ## Limits (UTC day; all in D1, atomic)
-Confirmation mails 40 per day and 5 per address per 24 hours; delivered messages 30 per day; acknowledgments 30 per day. Together they
+Confirmation mails 40 per day, 3 per client (IPv4 address or IPv6 /64), 6 per network (IPv4 /24 or IPv6 /48) and 5 per address
+per 24 hours; delivered messages 30 per day; acknowledgments 30 per day. Together they
 stay below the Resend free quota of 100 mails per day. Turnstile, the honeypot, the fill time, the Workers rate limiter (separate key per endpoint)
-and the zone's WAF rule stay in front of everything. The WAF rule `api-contact-rate-limit` (dashboard only) matches the URI path `/contact`:
-change it to "starts with /contact" so that `/contact/verify` and `/contact/resend` are covered as well.
+and the zone's WAF rule stay in front of everything. The WAF rule `api-contact-rate-limit` (dashboard only) matches paths that start with `/contact` (5 requests per 10 seconds per IP).
 ## Configuration
 Secrets (Worker Production secrets, never in files): `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY`,
 `CONTACT_RECIPIENT` (the private notification address) and `DIGEST_PEPPER` (at least 32 random characters; keys the HMAC of stored hashes and counter keys; create it once with `npx wrangler secret put DIGEST_PEPPER`; changing it later only resets pending messages and counters).
 Plain variables and bindings are in `wrangler.toml`: `MAIL_FROM`, `TURNSTILE_HOSTNAMES`, the rate limiter `RATE_LIMITER`, the D1 database
-`DB` and an hourly cron trigger (removes expired rows; reading ignores them anyway). `VERIFY_BASE_URL` is optional (local development only).
+`DB` and a cron trigger every 5 minutes (removes expired rows; reading ignores them anyway). `VERIFY_BASE_URL` is optional and honoured only
+for `http://localhost` or `http://127.0.0.1` (local development); any other value is ignored and the links point to nuray.io.
 The D1 binding is required: without it the Worker answers 500 instead of running unprotected.
 One-time setup in `worker/` (the owner runs it in their own terminal):
 1. `npx wrangler d1 create nuray-contact` and put the returned `database_id` into `wrangler.toml`;

@@ -1,12 +1,12 @@
 // nuray-contact-api: receives contact-form submissions from nuray.io.
 // Flow with e-mail verification:
-//   POST /contact         validates the form and Turnstile, stores the message in D1 for 15 minutes under the SHA-256 of a random
+//   POST /contact         validates the form and Turnstile, stores the message in D1 for 15 minutes under the HMAC digest of a random
 //                         token and mails the visitor a confirmation link (https://nuray.io/verify.html#t=<token>). Nothing reaches the owner yet.
 //   POST /contact/verify  the confirmation page posts the token; the row is consumed atomically (UPDATE ... RETURNING), so a link works
 //                         once. Then the notification goes to CONTACT_RECIPIENT (Reply-To = visitor) and a short acknowledgment to the visitor.
 //   POST /contact/resend  issues a new link for a pending message (60 s apart, at most 3 mails per message).
-// D1 (DB) holds the pending messages (deleted on delivery, on expiry by the purge, hourly by cron) and counters (daily caps, per-address limits).
-// Counter keys contain only SHA-256 digests of addresses, never an address or message text.
+// D1 (DB) holds the pending messages (deleted on delivery, on expiry by the purge, every 5 minutes by cron) and counters (daily caps, per-address limits).
+// Counter keys contain only HMAC-SHA256 digests (keyed with DIGEST_PEPPER) of addresses and client IPs, never an address or message text.
 // Secrets (RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_RECIPIENT, DIGEST_PEPPER) exist only as Worker secrets.
 // Nothing in this file logs visitor data, addresses, tokens or keys.
 
@@ -31,6 +31,7 @@ const ADDR_TTL_S = 24 * 60 * 60;
 const ACK_DAILY_MAX = 30; // automatic acknowledgments per UTC day in total
 const OWNER_DAILY_MAX = 30; // delivered messages per UTC day in total
 const VERIFY_DAILY_MAX = 40; // confirmation mails per UTC day in total (the three caps together stay below Resend's 100 mails per day)
+const SUBNET_DAILY_MAX = 6; // the same per network (IPv4 /24, IPv6 /48), so rotating addresses inside one network does not multiply the per-client cap
 const IP_DAILY_MAX = 3; // confirmation mails started per client (IPv4 address or IPv6 /64) per 24 hours, so one client cannot use up the daily cap
 const CLAIM_LEASE_S = 60; // a claimed message (used = claim time) can be claimed again after this long, if the Worker died before delivering it
 const DAY_TTL_S = 2 * 24 * 60 * 60;
@@ -211,8 +212,20 @@ function ownerMail(env, v) {
   return { from: String(env.MAIL_FROM).trim(), to: [String(env.CONTACT_RECIPIENT).trim()], reply_to: v.email, subject, text, html };
 }
 
+// VERIFY_BASE_URL is honoured only for a local page (http://localhost or 127.0.0.1). Any other value is ignored, so a wrong
+// production variable can never send confirmation links (and their tokens) to a foreign host.
+export function verifyBase(env) {
+  if (!env.VERIFY_BASE_URL) return VERIFY_URL;
+  try {
+    const u = new URL(String(env.VERIFY_BASE_URL));
+    if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1') && !u.username && !u.password) return u.toString();
+  } catch (e) { /* fall through */ }
+  console.error('VERIFY_BASE_URL ignored');
+  return VERIFY_URL;
+}
+
 function verifyUrl(env, lang, token) {
-  const u = new URL(env.VERIFY_BASE_URL ? String(env.VERIFY_BASE_URL) : VERIFY_URL);
+  const u = new URL(verifyBase(env));
   u.searchParams.set('lang', lang);
   u.hash = 't=' + token; // in the fragment: never sent to a server, a log or a Referer header
   return u.toString();
@@ -261,6 +274,16 @@ export function rateKey(ip) {
   return groups.slice(0, 4).map((g) => g.padStart(4, '0')).join(':') + '/64';
 }
 
+// Network of a client for the per-network cap: IPv4 /24, IPv6 /48 (derived from the /64 key of rateKey).
+export function subnetKey(ip) {
+  const k = rateKey(ip);
+  const v4 = k.match(/^(\d{1,3}\.\d{1,3}\.\d{1,3})\.\d{1,3}$/);
+  if (v4) return v4[1] + '.0/24';
+  const v6 = k.match(/^([0-9a-f]{4}:[0-9a-f]{4}:[0-9a-f]{4}):[0-9a-f]{4}\/64$/);
+  if (v6) return v6[1] + '::/48';
+  return k;
+}
+
 // Digest used for stored tokens and counter keys, so that neither a token, an address nor message text appears in a key.
 // HMAC-SHA256 keyed with the secret DIGEST_PEPPER: without that secret, a leaked D1 row or counter key cannot be used to test guesses
 // ("is this address / token among them?"), which a plain hash of a guessable address would allow.
@@ -298,7 +321,7 @@ async function peek(env, key) {
   const row = await env.DB.prepare('SELECT n FROM counters WHERE key = ? AND expires_at > ?').bind(key, nowS()).first();
   return row ? Number(row.n) : 0;
 }
-// Removes expired messages and counters (also run hourly by the cron trigger). Reading ignores expired rows anyway.
+// Removes expired messages and counters (also run every 5 minutes by the cron trigger). Reading ignores expired rows anyway.
 export async function purge(env) {
   try {
     const now = nowS();
@@ -364,25 +387,27 @@ async function handlePost(request, env, origin, ctx) {
 
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(purge(env));
 
-  // Store the message for 15 minutes and mail the confirmation link. At most one pending message per address. While one is still
-  // pending, a new submission for the same address does not touch it (otherwise anyone could replace or invalidate another person's
-  // pending message) and gets the same answer as a fresh one, without a mail, so the answer reveals nothing about that address.
+  // Store the message for 15 minutes and mail the confirmation link. At most one pending message per address.
+  // Nothing in the answer may depend on the address (anyone can type any address): when the address has reached its 24-hour limit,
+  // or a message for it is still pending (which a new submission must not replace or invalidate), the answer is the same as for a
+  // fresh submission, without a mail. Client and network counters stay spent in those cases, exactly as for a real submission.
   const emailHash = await digest(env, 'email:' + v.email);
   const addrKey = 'addrv:' + emailHash;
-  let addrReserved = false;
-  let dayReserved = false;
-  let ipReserved = false;
   const ipKey = 'ipv:' + (await digest(env, 'ip:' + rateKey(ip)));
+  const netKey = 'netv:' + (await digest(env, 'net:' + subnetKey(ip)));
   const token = newToken();
   const resend = newToken();
   const tokenHash = await digest(env, 'token:' + token);
+  const held = [];
+  const releaseAll = async (keys) => { for (const k of keys) await release(env, k); };
+  const silent = async () => { await releaseAll(held.filter((k) => k === addrKey || k === verifyDay)); return json(200, { ok: true, pending: true, resend: newToken() }, cors); };
   try {
-    if (!(await reserve(env, addrKey, ADDR_VERIFY_MAX, ADDR_TTL_S))) return reply(429, 'address_limit');
-    addrReserved = true;
-    if (!(await reserve(env, verifyDay, VERIFY_DAILY_MAX, DAY_TTL_S))) { await release(env, addrKey); return reply(429, 'rate_limited'); }
-    dayReserved = true;
-    if (!(await reserve(env, ipKey, IP_DAILY_MAX, ADDR_TTL_S))) { await release(env, addrKey); await release(env, verifyDay); return reply(429, 'rate_limited'); }
-    ipReserved = true;
+    for (const [key, max, ttl] of [[ipKey, IP_DAILY_MAX, ADDR_TTL_S], [netKey, SUBNET_DAILY_MAX, ADDR_TTL_S], [verifyDay, VERIFY_DAILY_MAX, DAY_TTL_S]]) {
+      if (!(await reserve(env, key, max, ttl))) { await releaseAll(held); return reply(429, 'rate_limited'); }
+      held.push(key);
+    }
+    if (!(await reserve(env, addrKey, ADDR_VERIFY_MAX, ADDR_TTL_S))) return await silent();
+    held.push(addrKey);
     const now = nowS();
     const stored = await env.DB.prepare(
       'INSERT INTO pending (token_hash, resend_hash, email_hash, name, email, subject, message, lang, expires_at, last_sent, mails, used) '
@@ -390,23 +415,16 @@ async function handlePost(request, env, origin, ctx) {
       + 'resend_hash = excluded.resend_hash, name = excluded.name, email = excluded.email, subject = excluded.subject, message = excluded.message, '
       + 'lang = excluded.lang, expires_at = excluded.expires_at, last_sent = excluded.last_sent, mails = 1, used = 0 WHERE pending.expires_at <= ?',
     ).bind(tokenHash, await digest(env, 'token:' + resend), emailHash, v.name, v.email, v.subject, v.message, v.lang, now + VERIFY_TTL_S, now, now).run();
-    if (!stored.meta || stored.meta.changes === 0) {
-      await release(env, addrKey); await release(env, verifyDay); await release(env, ipKey);
-      return json(200, { ok: true, pending: true, resend: newToken() }, cors);
-    }
+    if (!stored.meta || stored.meta.changes === 0) return await silent();
   } catch (e) {
     console.error('d1 error');
-    if (addrReserved) await release(env, addrKey);
-    if (dayReserved) await release(env, verifyDay);
-    if (ipReserved) await release(env, ipKey);
+    await releaseAll(held);
     return reply(500, 'server_error');
   }
   if (!(await trySend(env, verifyMail(env, v.email, v.lang, token)))) {
     console.error('verification mail failed');
     try { await env.DB.prepare('DELETE FROM pending WHERE token_hash = ?').bind(tokenHash).run(); } catch (e) { console.error('d1 error'); }
-    await release(env, addrKey);
-    await release(env, verifyDay);
-    await release(env, ipKey);
+    await releaseAll(held);
     return reply(502, 'server_error');
   }
   return json(200, { ok: true, pending: true, resend }, cors);
@@ -554,6 +572,6 @@ export async function handle(request, env, ctx) {
 
 export default {
   fetch: (request, env, ctx) => handle(request, env, ctx),
-  // Hourly cron trigger: removes expired pending messages and counters.
+  // Cron trigger (every 5 minutes): removes expired pending messages and counters.
   scheduled: (event, env, ctx) => ctx.waitUntil(purge(env)),
 };
