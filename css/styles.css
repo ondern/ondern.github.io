@@ -230,9 +230,9 @@ textarea.control { resize: vertical; }
 .field-error { margin: 0; max-width: none; text-align: left; hyphens: manual; font-size: .875rem; font-weight: 500; line-height: 1.45; color: var(--danger); }
 .field-error:empty { display: none; }
 .verify-page .card { max-width: 40rem; margin-inline: auto; } /* confirmation page of the e-mail link */
-.field-hint { margin: 0; max-width: none; text-align: left; hyphens: manual; font-size: .875rem; line-height: 1.45; color: var(--muted); } /* permanent explanation under a field (the e-mail field) */
+.field-hint { margin: 0; max-width: none; text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; font-size: .875rem; line-height: 1.45; color: var(--muted); } /* permanent explanation under a field (the e-mail field) */
 .verify-page .card { max-width: 40rem; margin-inline: auto; } /* confirmation page of the e-mail link */
-.field-hint { margin: 0; max-width: none; text-align: left; hyphens: manual; font-size: .875rem; line-height: 1.45; color: var(--muted); } /* permanent explanation under a field (the e-mail field) */
+.field-hint { margin: 0; max-width: none; text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; font-size: .875rem; line-height: 1.45; color: var(--muted); } /* permanent explanation under a field (the e-mail field) */
 .field-error[data-kind="info"] { color: var(--muted); }
 .ts-field .turnstile-slot { margin-bottom: 0; }
 .ts-field .turnstile-slot[data-failed] { min-height: 0; } /* the widget cannot appear, so the space kept for it is released */
@@ -289,6 +289,7 @@ a.provider-link[data-provider="zoho"]::before { background-image: url("../assets
   .primary-nav a { display: block; padding: .85rem 1rem; font-size: 1.05rem; }
 }
 @media (max-width: 56rem) {
+  .hero-role { text-align: left; hyphens: manual; } /* short 2-line tagline: justify opens huge gaps */
   .hero-grid, .contact-grid { grid-template-columns: 1fr; }
   .hero-visual { max-width: 14rem; justify-self: start; }
 }
