@@ -14,6 +14,7 @@ function makeEnv(over = {}) {
   return {
     RESEND_API_KEY: 'test-resend-key',
     TURNSTILE_SECRET_KEY: 'test-turnstile-secret',
+    DIGEST_PEPPER: 'test-pepper-0123456789abcdef0123456789abcdef',
     CONTACT_RECIPIENT: 'owner@example.test',
     MAIL_FROM: 'nuray.io <noreply@nuray.io>',
     RATE_LIMITER: { limit: async () => ({ success: true }) },
@@ -236,14 +237,54 @@ test('a failed owner notification keeps the message: the same link can be used a
   assert.equal(rows(env, 'SELECT * FROM pending').length, 0);
 });
 
-test('a new submission for the same address replaces the earlier one and its link stops working', async () => {
+test('a second submission for an address with a live pending message changes nothing, sends no mail and looks like a normal answer', async () => {
   const env = makeEnv();
   const first = await submit(env, { message: 'The first version of my message.' });
+  const before = JSON.stringify(rows(env, 'SELECT * FROM pending'));
+  const countersBefore = JSON.stringify(rows(env, 'SELECT key, n FROM counters ORDER BY key'));
   const second = await submit(env, { message: 'The second version of my message.' });
+  assert.equal(second.res.status, 200);
+  assert.deepEqual(Object.keys(second.b).sort(), Object.keys(first.b).sort(), 'same answer shape as a fresh submission');
+  assert.notEqual(second.b.resend, first.b.resend);
+  assert.equal(calls.resend.length, 1, 'no second mail');
+  assert.equal(JSON.stringify(rows(env, 'SELECT * FROM pending')), before, 'the pending row is untouched');
+  assert.equal(JSON.stringify(rows(env, 'SELECT key, n FROM counters ORDER BY key')), countersBefore, 'no counter is spent');
+  assert.equal((await resendLink(env, second.b.resend)).status, 400, 'the made-up secret does nothing');
+  assert.equal((await verify(env, first.token, { waitUntil: () => {} })).status, 200, 'the first link still works');
+  assert.match(calls.resend.map((c) => c.body).find((m) => m.reply_to).text, /first version/);
+});
+
+test('once the pending message has expired, a new submission replaces it', async () => {
+  const env = makeEnv();
+  const first = await submit(env, { message: 'The first version of my message.' });
+  env.DB.raw.exec('UPDATE pending SET expires_at = 1');
+  const second = await submit(env, { message: 'The second version of my message.' });
+  assert.ok(second.token);
   assert.equal(rows(env, 'SELECT * FROM pending').length, 1);
   assert.equal((await verify(env, first.token)).status, 400);
   assert.equal((await verify(env, second.token, { waitUntil: () => {} })).status, 200);
   assert.match(calls.resend.map((c) => c.body).find((m) => m.reply_to).text, /second version/);
+});
+
+test('stored hashes depend on the pepper secret', async () => {
+  const a = makeEnv({ DIGEST_PEPPER: 'a'.repeat(40) });
+  const b = makeEnv({ DIGEST_PEPPER: 'b'.repeat(40) });
+  await submit(a);
+  await submit(b);
+  const hash = (env) => rows(env, 'SELECT email_hash FROM pending')[0].email_hash;
+  assert.match(hash(a), /^[0-9a-f]{64}$/);
+  assert.notEqual(hash(a), hash(b));
+});
+
+test('a claimed message is locked for 60 seconds, then the same link can be used again (Worker died before delivery)', async () => {
+  const env = makeEnv();
+  const { token } = await submit(env);
+  const now = Math.floor(Date.now() / 1000);
+  env.DB.raw.prepare('UPDATE pending SET used = ?').run(now - 5);
+  assert.equal((await verify(env, token)).status, 400, 'still locked');
+  env.DB.raw.prepare('UPDATE pending SET used = ?').run(now - 120);
+  assert.equal((await verify(env, token, { waitUntil: () => {} })).status, 200, 'lease expired');
+  assert.equal(rows(env, 'SELECT * FROM pending').length, 0);
 });
 
 test('new link: 60 seconds apart, at most three mails per message, the old link stops working', async () => {
@@ -294,7 +335,8 @@ test('new link: unknown or malformed secret, expired message, failed mail', asyn
 test('confirmation mails per address are limited to 5 per day, and the answer says so', async () => {
   const env = makeEnv();
   const from = (i) => ({ headers: { 'CF-Connecting-IP': `198.51.100.${i + 1}` } }); // different clients, so the per-client cap does not interfere
-  for (let i = 0; i < 5; i++) assert.equal((await handle(post(good({ message: `Message number ${i} here.` }), from(i)), env)).status, 200);
+  const expire = () => env.DB.raw.exec('UPDATE pending SET expires_at = 1'); // a live pending message would block the next submission
+  for (let i = 0; i < 5; i++) { assert.equal((await handle(post(good({ message: `Message number ${i} here.` }), from(i)), env)).status, 200); expire(); }
   const res = await handle(post(good({ message: 'Message number six here.' }), from(5)), env);
   assert.equal(res.status, 429);
   assert.equal((await body(res)).code, 'address_limit');
@@ -535,7 +577,7 @@ test('a D1 outage fails closed: error, no mail, no delivery', async () => {
 });
 
 test('misconfiguration returns a generic 500 and names no secret in the response', async () => {
-  for (const missing of ['RESEND_API_KEY', 'TURNSTILE_SECRET_KEY', 'CONTACT_RECIPIENT', 'RATE_LIMITER', 'DB']) {
+  for (const missing of ['RESEND_API_KEY', 'TURNSTILE_SECRET_KEY', 'DIGEST_PEPPER', 'CONTACT_RECIPIENT', 'RATE_LIMITER', 'DB']) {
     for (const path of ['/contact', '/contact/verify', '/contact/resend']) {
       const res = await handle(req(path, good()), makeEnv({ [missing]: undefined }));
       assert.equal(res.status, 500, `${missing} ${path}`);

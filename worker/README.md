@@ -9,10 +9,10 @@ A message is delivered only after the visitor has confirmed the e-mail address b
    then stores the message in D1 for 15 minutes under the SHA-256 of a random token (32 bytes, 256 bit) and mails the visitor
    a confirmation link `https://nuray.io/verify.html?lang=xx#t=<token>` from `MAIL_FROM`. The mail contains fixed text only, never the
    visitor's name, subject or message. The answer is `{ ok: true, pending: true, resend: "<secret>" }`; nothing reaches the owner yet.
-   One pending message per address: a new submission replaces the earlier one and its link stops working.
+   One pending message per address: while it is live, a new submission for the same address changes nothing and sends no mail, but gets the same answer as a normal one (so the answer reveals nothing about the address).
 2. `verify.html` (static page): opening the link does nothing. The button posts the token to `POST /contact/verify`.
-3. `POST /contact/verify` `{ token }`: consumes the row atomically (`UPDATE ... SET used = 1 WHERE token_hash = ? AND used = 0 AND
-   expires_at > now RETURNING ...`), so a link works once and only for its own message, even for two simultaneous clicks. Then the
+3. `POST /contact/verify` `{ token }`: consumes the row atomically (`UPDATE ... SET used = <now> WHERE token_hash = ? AND (used = 0 OR
+   used <= now - 60) AND expires_at > now RETURNING ...`), so a link works once and only for its own message, even for two simultaneous clicks. Then the
    notification goes to the owner (Reply-To = visitor), the row is deleted, and a short localized acknowledgment follows in the background
    (at most one per address per 24 hours). If the owner mail fails, the row is released again and the same link can be used again.
    An unknown, used, expired or malformed token always gets `400 invalid_token`.
@@ -28,7 +28,7 @@ and the zone's WAF rule stay in front of everything. The WAF rule `api-contact-r
 change it to "starts with /contact" so that `/contact/verify` and `/contact/resend` are covered as well.
 ## Configuration
 Secrets (Worker Production secrets, never in files): `RESEND_API_KEY`, `TURNSTILE_SECRET_KEY`,
-`CONTACT_RECIPIENT` (the private notification address).
+`CONTACT_RECIPIENT` (the private notification address) and `DIGEST_PEPPER` (at least 32 random characters; keys the HMAC of stored hashes and counter keys; create it once with `npx wrangler secret put DIGEST_PEPPER`; changing it later only resets pending messages and counters).
 Plain variables and bindings are in `wrangler.toml`: `MAIL_FROM`, `TURNSTILE_HOSTNAMES`, the rate limiter `RATE_LIMITER`, the D1 database
 `DB` and an hourly cron trigger (removes expired rows; reading ignores them anyway). `VERIFY_BASE_URL` is optional (local development only).
 The D1 binding is required: without it the Worker answers 500 instead of running unprotected.

@@ -7,7 +7,7 @@
 //   POST /contact/resend  issues a new link for a pending message (60 s apart, at most 3 mails per message).
 // D1 (DB) holds the pending messages (deleted on delivery, on expiry by the purge, hourly by cron) and counters (daily caps, per-address limits).
 // Counter keys contain only SHA-256 digests of addresses, never an address or message text.
-// Secrets (RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_RECIPIENT) exist only as Worker secrets.
+// Secrets (RESEND_API_KEY, TURNSTILE_SECRET_KEY, CONTACT_RECIPIENT, DIGEST_PEPPER) exist only as Worker secrets.
 // Nothing in this file logs visitor data, addresses, tokens or keys.
 
 const ALLOWED_ORIGINS = ['https://nuray.io', 'https://www.nuray.io'];
@@ -32,6 +32,7 @@ const ACK_DAILY_MAX = 30; // automatic acknowledgments per UTC day in total
 const OWNER_DAILY_MAX = 30; // delivered messages per UTC day in total
 const VERIFY_DAILY_MAX = 40; // confirmation mails per UTC day in total (the three caps together stay below Resend's 100 mails per day)
 const IP_DAILY_MAX = 3; // confirmation mails started per client (IPv4 address or IPv6 /64) per 24 hours, so one client cannot use up the daily cap
+const CLAIM_LEASE_S = 60; // a claimed message (used = claim time) can be claimed again after this long, if the Worker died before delivering it
 const DAY_TTL_S = 2 * 24 * 60 * 60;
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/; // 32 random bytes, base64url
 const VERIFY_URL = 'https://nuray.io/verify.html'; // can be overridden by the VERIFY_BASE_URL variable (local development)
@@ -121,6 +122,7 @@ function configProblems(env) {
   const bad = [];
   if (!env.RESEND_API_KEY) bad.push('RESEND_API_KEY');
   if (!env.TURNSTILE_SECRET_KEY) bad.push('TURNSTILE_SECRET_KEY');
+  if (typeof env.DIGEST_PEPPER !== 'string' || env.DIGEST_PEPPER.length < 32) bad.push('DIGEST_PEPPER');
   if (!env.CONTACT_RECIPIENT || !EMAIL_RE.test(String(env.CONTACT_RECIPIENT).trim())) bad.push('CONTACT_RECIPIENT');
   if (!env.MAIL_FROM || !FROM_RE.test(String(env.MAIL_FROM).trim())) bad.push('MAIL_FROM');
   if (!env.RATE_LIMITER || typeof env.RATE_LIMITER.limit !== 'function') bad.push('RATE_LIMITER');
@@ -260,8 +262,11 @@ export function rateKey(ip) {
 }
 
 // Digest used for stored tokens and counter keys, so that neither a token, an address nor message text appears in a key.
-async function digest(text) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('nuray-contact:' + text));
+// HMAC-SHA256 keyed with the secret DIGEST_PEPPER: without that secret, a leaked D1 row or counter key cannot be used to test guesses
+// ("is this address / token among them?"), which a plain hash of a guessable address would allow.
+async function digest(env, text) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(env.DIGEST_PEPPER)), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const buf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode('nuray-contact:' + text));
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 const nowS = () => Math.floor(Date.now() / 1000);
@@ -359,17 +364,18 @@ async function handlePost(request, env, origin, ctx) {
 
   if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(purge(env));
 
-  // Store the message for 15 minutes and mail the confirmation link. At most one pending message per address: a new submission
-  // replaces the earlier one (and its link stops working).
-  const emailHash = await digest('email:' + v.email);
+  // Store the message for 15 minutes and mail the confirmation link. At most one pending message per address. While one is still
+  // pending, a new submission for the same address does not touch it (otherwise anyone could replace or invalidate another person's
+  // pending message) and gets the same answer as a fresh one, without a mail, so the answer reveals nothing about that address.
+  const emailHash = await digest(env, 'email:' + v.email);
   const addrKey = 'addrv:' + emailHash;
   let addrReserved = false;
   let dayReserved = false;
   let ipReserved = false;
-  const ipKey = 'ipv:' + (await digest('ip:' + rateKey(ip)));
+  const ipKey = 'ipv:' + (await digest(env, 'ip:' + rateKey(ip)));
   const token = newToken();
   const resend = newToken();
-  const tokenHash = await digest('token:' + token);
+  const tokenHash = await digest(env, 'token:' + token);
   try {
     if (!(await reserve(env, addrKey, ADDR_VERIFY_MAX, ADDR_TTL_S))) return reply(429, 'address_limit');
     addrReserved = true;
@@ -378,12 +384,16 @@ async function handlePost(request, env, origin, ctx) {
     if (!(await reserve(env, ipKey, IP_DAILY_MAX, ADDR_TTL_S))) { await release(env, addrKey); await release(env, verifyDay); return reply(429, 'rate_limited'); }
     ipReserved = true;
     const now = nowS();
-    await env.DB.prepare(
+    const stored = await env.DB.prepare(
       'INSERT INTO pending (token_hash, resend_hash, email_hash, name, email, subject, message, lang, expires_at, last_sent, mails, used) '
       + 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0) ON CONFLICT(email_hash) DO UPDATE SET token_hash = excluded.token_hash, '
       + 'resend_hash = excluded.resend_hash, name = excluded.name, email = excluded.email, subject = excluded.subject, message = excluded.message, '
-      + 'lang = excluded.lang, expires_at = excluded.expires_at, last_sent = excluded.last_sent, mails = 1, used = 0',
-    ).bind(tokenHash, await digest('token:' + resend), emailHash, v.name, v.email, v.subject, v.message, v.lang, now + VERIFY_TTL_S, now).run();
+      + 'lang = excluded.lang, expires_at = excluded.expires_at, last_sent = excluded.last_sent, mails = 1, used = 0 WHERE pending.expires_at <= ?',
+    ).bind(tokenHash, await digest(env, 'token:' + resend), emailHash, v.name, v.email, v.subject, v.message, v.lang, now + VERIFY_TTL_S, now, now).run();
+    if (!stored.meta || stored.meta.changes === 0) {
+      await release(env, addrKey); await release(env, verifyDay); await release(env, ipKey);
+      return json(200, { ok: true, pending: true, resend: newToken() }, cors);
+    }
   } catch (e) {
     console.error('d1 error');
     if (addrReserved) await release(env, addrKey);
@@ -412,7 +422,7 @@ async function handleVerify(request, env, origin, ctx) {
   if (!('input' in parsed)) return reply(parsed.status, parsed.code);
   const token = parsed.input && typeof parsed.input === 'object' ? parsed.input.token : undefined;
   if (typeof token !== 'string' || !TOKEN_RE.test(token)) return reply(400, 'invalid_token');
-  const tokenHash = await digest('token:' + token);
+  const tokenHash = await digest(env, 'token:' + token);
 
   const ownerDay = dayKey('ownerday');
   let row;
@@ -421,8 +431,8 @@ async function handleVerify(request, env, origin, ctx) {
     // Atomic: of two simultaneous requests with the same token only one gets the row. This runs before the daily cap, so an
     // unknown token costs no counter writes (an UPDATE that matches nothing writes no rows).
     row = await env.DB.prepare(
-      'UPDATE pending SET used = 1 WHERE token_hash = ? AND used = 0 AND expires_at > ? RETURNING name, email, subject, message, lang, email_hash',
-    ).bind(tokenHash, nowS()).first();
+      'UPDATE pending SET used = ? WHERE token_hash = ? AND (used = 0 OR used <= ?) AND expires_at > ? RETURNING name, email, subject, message, lang, email_hash',
+    ).bind(nowS(), tokenHash, nowS() - CLAIM_LEASE_S, nowS()).first();
     if (!row) return reply(400, 'invalid_token');
     if (!(await reserve(env, ownerDay, OWNER_DAILY_MAX, DAY_TTL_S))) {
       await env.DB.prepare('UPDATE pending SET used = 0 WHERE token_hash = ?').bind(tokenHash).run();
@@ -476,7 +486,7 @@ async function handleResend(request, env, origin) {
   if (!('input' in parsed)) return reply(parsed.status, parsed.code);
   const secret = parsed.input && typeof parsed.input === 'object' ? parsed.input.resend : undefined;
   if (typeof secret !== 'string' || !TOKEN_RE.test(secret)) return reply(400, 'invalid_token');
-  const resendHash = await digest('token:' + secret);
+  const resendHash = await digest(env, 'token:' + secret);
 
   const verifyDay = dayKey('verifyday');
   let addrKey = '';
@@ -484,7 +494,7 @@ async function handleResend(request, env, origin) {
   let dayReserved = false;
   const undo = async () => { if (addrReserved) await release(env, addrKey); if (dayReserved) await release(env, verifyDay); };
   const token = newToken();
-  const tokenHash = await digest('token:' + token);
+  const tokenHash = await digest(env, 'token:' + token);
   let row;
   let updated;
   try {

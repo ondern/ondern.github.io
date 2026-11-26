@@ -12,7 +12,7 @@ const { makeD1 } = await import('../worker/test/d1-shim.mjs');
 const PAGE_ORIGINS = ['http://localhost:4173', 'http://127.0.0.1:4173'];
 const hits = new Map();
 const env = {
-  RESEND_API_KEY: 'mock', TURNSTILE_SECRET_KEY: 'mock', CONTACT_RECIPIENT: 'owner@example.test', MAIL_FROM: 'nuray.io <noreply@nuray.io>',
+  RESEND_API_KEY: 'mock', TURNSTILE_SECRET_KEY: 'mock', DIGEST_PEPPER: 'dev-only-pepper-0123456789abcdef0123456789', CONTACT_RECIPIENT: 'owner@example.test', MAIL_FROM: 'nuray.io <noreply@nuray.io>',
   DB: makeD1(), // in-memory SQLite stand-in for D1 (real SQL)
   VERIFY_BASE_URL: 'http://localhost:4173/verify.html?contactDev=1', // the confirmation link opens the local page
   RATE_LIMITER: { limit: async ({ key }) => { const now = Date.now(); const a = (hits.get(key) || []).filter((t) => now - t < 60000); a.push(now); hits.set(key, a); return { success: a.length <= 5 }; } },

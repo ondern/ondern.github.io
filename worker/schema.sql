@@ -2,7 +2,7 @@
 -- Run once:  npx wrangler d1 execute nuray-contact --remote --file=schema.sql   (in worker/)
 
 -- A message waiting for the visitor's e-mail confirmation. The link token and the resend secret are stored only as SHA-256 digests.
--- One row per address (a new submission replaces the earlier one). Deleted when delivered; rows past expires_at are never read and
+-- One row per address. While a row is live, a new submission for that address leaves it untouched. `used` is 0, or the Unix time at which the message was claimed for delivery (claimed again only after 60 seconds if delivery never finished). Deleted when delivered; rows past expires_at are never read and
 -- are purged (on submissions and hourly by cron). expires_at and last_sent are Unix seconds.
 CREATE TABLE IF NOT EXISTS pending (
   token_hash  TEXT PRIMARY KEY,
