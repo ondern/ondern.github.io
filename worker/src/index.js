@@ -66,7 +66,7 @@ const ACK = {
 const VERIFY = {
   en: {
     subject: 'Please Verify Your Email Address',
-    lines: (url) => ['Hello,', 'A message was submitted through the contact form on nuray.io using this email address. To verify that the email address belongs to you, you must confirm it before the message can be sent.', 'To verify your email address and send the message, open the link below and click the “Confirm email address and send message” button on the page. The verification link is valid for 15 minutes and can only be used once.', url, 'If you did not submit this message, you can ignore this email. Your message will not be sent unless your email address is verified. If you do not verify your email address within 15 minutes, your message will be stored temporarily and automatically deleted when the 15-minute period expires.', 'Kind regards,'],
+    lines: (url) => ['Hello,', 'A message was submitted through the contact form on nuray.io using this email address. To verify that the email address belongs to you, you must confirm it before the message can be sent.', 'To verify your email address and send the message, open the link below and click the “Verify Email Address and Send Message” button on the page. The verification link is valid for 15 minutes and can only be used once.', url, 'If you did not submit this message, you can ignore this email. Your message will not be sent unless your email address is verified. If you do not verify your email address within 15 minutes, your message will be stored temporarily and automatically deleted when the 15-minute period expires.', 'Kind regards,'],
   },
   de: {
     subject: 'Bitte bestätigen Sie Ihre E-Mail-Adresse',
