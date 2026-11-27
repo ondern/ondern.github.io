@@ -568,7 +568,7 @@ await test('Confirmation page: opening the link sends nothing; the button confir
   for (const [hash, answer] of [['', null], ['#t=short', null], ['#t=' + TOKEN + '&x=1', null], ['#t=' + TOKEN, { status: 400, body: { ok: false, code: 'invalid_token' } }]]) {
     const p = await open('en', hash, answer);
     if (answer) await p.click('#verify-btn');
-    await p.waitForFunction(() => /invalid, has already been used or has expired/.test(document.getElementById('verify-status').textContent));
+    await p.waitForFunction(() => /invalid, has already been used, or has expired/.test(document.getElementById('verify-status').textContent));
     const s = await state(p); const posts = p.posts.length; await p.context().close();
     if (!s.btn || (answer ? posts !== 1 : posts !== 0)) throw new Error('invalid token (' + hash + '): ' + JSON.stringify([s.btn, posts]));
   }
@@ -863,7 +863,7 @@ await test('Contact local dev harness: real Worker code, mocked Turnstile/Resend
     await v.goto(link);
     await v.waitForSelector('#verify-btn');
     await v.click('#verify-btn');
-    await v.waitForFunction(() => /invalid, has already been used or has expired/.test(document.getElementById('verify-status').textContent));
+    await v.waitForFunction(() => /invalid, has already been used, or has expired/.test(document.getElementById('verify-status').textContent));
     await ctx.close();
     if (!hidden.btn || hidden.hash) throw new Error('the used link must disappear: ' + JSON.stringify(hidden));
     if (problems.length) throw new Error('CSP: ' + problems.join('|'));

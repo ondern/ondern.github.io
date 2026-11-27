@@ -207,7 +207,7 @@
   "verify.working": "Gönderiliyor…",
   "verify.doneTitle": "E-posta adresiniz doğrulandı.",
   "verify.ok": "Mesajınız başarıyla gönderildi.",
-  "verify.invalid": "Bu bağlantı geçersiz, daha önce kullanılmış veya süresi dolmuş. Lütfen formu yeniden gönderin.",
+  "verify.invalid": "Bu bağlantı geçersiz, daha önce kullanılmış veya süresi dolmuş. Lütfen iletişim formunu yeniden gönderin.",
   "verify.rate": "Çok fazla deneme yapıldı. Lütfen biraz bekleyip tekrar deneyin.",
   "verify.network": "Bağlantı kurulamadı. Lütfen ağ bağlantınızı kontrol edip düğmeye tekrar basın.",
   "verify.server": "Mesajınız gönderilemedi. Lütfen biraz sonra düğmeye tekrar basın; bağlantı süresi dolana kadar geçerli kalır.",

@@ -207,7 +207,7 @@
   "verify.working": "Wird gesendet …",
   "verify.doneTitle": "Ihre E-Mail-Adresse wurde bestätigt.",
   "verify.ok": "Ihre Nachricht wurde erfolgreich gesendet.",
-  "verify.invalid": "Dieser Link ist ungültig, wurde bereits verwendet oder ist abgelaufen. Bitte senden Sie das Formular erneut ab.",
+  "verify.invalid": "Dieser Link ist ungültig, wurde bereits verwendet oder ist abgelaufen. Bitte senden Sie das Kontaktformular erneut ab.",
   "verify.rate": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
   "verify.network": "Die Verbindung ist fehlgeschlagen. Bitte prüfen Sie Ihr Netzwerk und klicken Sie erneut auf die Schaltfläche.",
   "verify.server": "Ihre Nachricht konnte nicht gesendet werden. Bitte klicken Sie in einem Moment erneut auf die Schaltfläche; der Link bleibt bis zum Ablauf gültig.",

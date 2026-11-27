@@ -207,7 +207,7 @@
   "verify.working": "Sending…",
   "verify.doneTitle": "Your email address has been confirmed.",
   "verify.ok": "Your message has been sent successfully.",
-  "verify.invalid": "This link is invalid, has already been used or has expired. Please send the form again.",
+  "verify.invalid": "This link is invalid, has already been used, or has expired. Please submit the contact form again.",
   "verify.rate": "Too many attempts. Please wait a moment and try again.",
   "verify.network": "The connection failed. Please check your network and press the button again.",
   "verify.server": "Your message could not be sent. Please press the button again in a moment; the link stays valid until it expires.",
