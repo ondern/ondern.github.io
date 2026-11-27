@@ -1244,7 +1244,7 @@ await test('Footer notice: exact text in en/de/tr (includes the contact-form pro
     await p.context().close();
     if (d.notice !== want[lang]) throw new Error(lang + ': notice differs: ' + d.notice);
     if (d.links.some((h) => /legal/i.test(h || ''))) throw new Error(lang + ': link to a legal page remains');
-    if (d.footerLinks.join() !== '#top,https://www.cloudflare.com/,https://resend.com/,https://www.zoho.com,https://pages.github.com/') throw new Error(lang + ': unexpected footer links ' + d.footerLinks);
+    if (d.footerLinks.join() !== 'https://www.cloudflare.com/,https://resend.com/,https://www.zoho.com,https://pages.github.com/') throw new Error(lang + ': unexpected footer links ' + d.footerLinks);
   }
   const res = await fetch(base + '/legal.html');
   if (res.status !== 404) throw new Error('legal.html still served: ' + res.status);

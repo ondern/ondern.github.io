@@ -255,7 +255,7 @@ textarea.control { resize: vertical; }
 /* Green success notice (contact form and confirmation page): tablet and mobile justify with controlled hyphenation; desktop stays left-aligned. Hyphenation follows <html lang>. */
 @media (max-width: 62rem) { .form-status[data-kind="success"] { text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; } }
 .control[aria-invalid="true"] { border-color: var(--danger); box-shadow: inset 0 0 0 1px var(--danger); }
-.site-footer { border-top: 1px solid var(--border); padding-block: var(--sp-6); background: var(--bg-alt); }
+.site-footer { border-top: 1px solid var(--border); padding-block: var(--sp-6); padding-bottom: calc(var(--sp-6) + 3.5rem); background: var(--bg-alt); } /* room for the floating back-to-top button */
 .footer-inner { display: grid; gap: var(--sp-3); }
 .footer-notice { max-width: 72ch; }
 /* Small service icons in front of Cloudflare, Resend and Zoho in the privacy notices. The files are local (nothing is fetched from
@@ -269,7 +269,6 @@ a.provider-link[data-provider="duolingo"]::before { background-image: url("../as
 a.provider-link[data-provider="zoho"]::before { background-image: url("../assets/icons/providers/zoho.png"); background-color: #fff; background-size: 84%; box-shadow: 0 0 0 1px rgb(0 0 0 / .16); } /* transparent logo: white tile for both themes */
 a.provider-link[data-provider="github-pages"]::before { background-image: url("../assets/icons/providers/github-pages.png"); border-radius: 50%; box-shadow: 0 0 0 1px rgb(128 128 128 / .45); } /* round icon: keep it round and visible on both light and dark backgrounds */
 @media (forced-colors: active) { a.provider-link::before { display: none; } } /* background images are not shown there; do not leave a gap */
-.footer-links { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); }
 
 /* Motion: reveal only when JS has enabled it --------------------------- */
 .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s var(--ease), transform .5s var(--ease); }
@@ -342,7 +341,7 @@ a.provider-link[data-provider="github-pages"]::before { background-image: url(".
   }
   html, body { background: #fff; color: #000; }
   *, *::before, *::after { box-shadow: none !important; text-shadow: none !important; backdrop-filter: none !important; }
-  .skip-link, .site-header, .back-to-top, .cta-row, .social-row, #contact-form, .toolbar, #cred-toggle, #cred-dialog, .footer-links { display: none !important; }
+  .skip-link, .site-header, .back-to-top, .cta-row, .social-row, #contact-form, .toolbar, #cred-toggle, #cred-dialog { display: none !important; }
   .js .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
   .hero, .section, .section.alt { background: none; padding-block: var(--sp-4); }
   .hero-grid, .contact-grid { display: block; }
