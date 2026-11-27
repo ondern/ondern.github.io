@@ -205,7 +205,7 @@
   "verify.intro": "Click the button below to verify your email address and send your message. The verification link is valid for 15 minutes and can only be used once.",
   "verify.button": "Confirm email address and send message",
   "verify.working": "Sending…",
-  "verify.doneTitle": "Your email address has been confirmed.",
+  "verify.doneTitle": "Email Address Verified",
   "verify.ok": "Your message has been sent successfully.",
   "verify.invalid": "This link is invalid, has already been used, or has expired. Please submit the contact form again.",
   "verify.rate": "Too many attempts. Please wait a moment and try again.",

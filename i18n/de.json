@@ -205,7 +205,7 @@
   "verify.intro": "Klicken Sie auf die Schaltfläche unten, um Ihre E-Mail-Adresse zu bestätigen und Ihre Nachricht zu senden. Der Bestätigungslink ist 15 Minuten gültig und kann nur einmal verwendet werden.",
   "verify.button": "E-Mail-Adresse bestätigen und Nachricht senden",
   "verify.working": "Wird gesendet …",
-  "verify.doneTitle": "Ihre E-Mail-Adresse wurde bestätigt.",
+  "verify.doneTitle": "E-Mail-Adresse bestätigt",
   "verify.ok": "Ihre Nachricht wurde erfolgreich gesendet.",
   "verify.invalid": "Dieser Link ist ungültig, wurde bereits verwendet oder ist abgelaufen. Bitte senden Sie das Kontaktformular erneut ab.",
   "verify.rate": "Zu viele Versuche. Bitte warten Sie einen Moment und versuchen Sie es erneut.",
