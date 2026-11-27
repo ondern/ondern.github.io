@@ -5,7 +5,7 @@
   var TEXT = {
     en: { title: 'Page Not Found | Önder Nuray', h1: 'Page Not Found', p: 'The page you\u2019re looking for couldn\u2019t be found. The URL may be incorrect, or the page may have been moved or removed.', home: 'Return to Home', href: '/' },
     de: { title: 'Seite nicht gefunden | Önder Nuray', h1: 'Seite nicht gefunden', p: 'Die gesuchte Seite konnte nicht gefunden werden. Möglicherweise ist die Adresse falsch eingegeben, oder die Seite wurde verschoben oder entfernt.', home: 'Zur Startseite', href: '/de/' },
-    tr: { title: 'Aradığınız sayfa bulunamadı | Önder Nuray', h1: 'Aradığınız sayfa bulunamadı.', p: 'Adres yanlış yazılmış, sayfa taşınmış veya kaldırılmış olabilir.', home: 'Ana sayfaya dön', href: '/tr/' },
+    tr: { title: 'Aradığınız sayfa bulunamadı | Önder Nuray', h1: 'Aradığınız sayfa bulunamadı', p: 'Adres yanlış yazılmış, sayfa taşınmış veya kaldırılmış olabilir.', home: 'Ana sayfaya dön', href: '/tr/' },
   };
   var lang = null;
   try { var s = localStorage.getItem('lang'); if (TEXT[s]) lang = s; } catch (e) { /* storage unavailable */ }

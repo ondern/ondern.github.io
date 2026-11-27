@@ -1311,7 +1311,7 @@ await test('404 page: served for a missing address at any depth, three languages
   const want = {
     en: { h1: 'Page Not Found', title: 'Page Not Found', href: '/', home: 'Return to Home' },
     de: { h1: 'Seite nicht gefunden', title: 'Seite nicht gefunden', href: '/de/', home: 'Zur Startseite' },
-    tr: { h1: 'Aradığınız sayfa bulunamadı.', title: 'Aradığınız sayfa bulunamadı', href: '/tr/', home: 'Ana sayfaya dön' },
+    tr: { h1: 'Aradığınız sayfa bulunamadı', title: 'Aradığınız sayfa bulunamadı', href: '/tr/', home: 'Ana sayfaya dön' },
   };
   const open = async (path, lang, width) => {
     const ctx = await browser.newContext({ viewport: { width, height: 800 }, locale: 'en-US' });
