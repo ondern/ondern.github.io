@@ -1309,9 +1309,9 @@ await test('404 page: served for a missing address at any depth, three languages
   if (!/<meta name="robots" content="noindex">/.test(html)) throw new Error('404.html must be noindex');
   if (/(src|href)="(?!\/|https?:|#)[^"]/.test(html)) throw new Error('404.html must use root-relative paths only');
   const want = {
-    en: { h1: 'Page not found', href: '/', home: 'Back to the homepage' },
-    de: { h1: 'Seite nicht gefunden', href: '/de/', home: 'Zur Startseite' },
-    tr: { h1: 'Sayfa bulunamadı', href: '/tr/', home: 'Ana sayfaya dön' },
+    en: { h1: 'Page Not Found', title: 'Page Not Found', href: '/', home: 'Return to Home' },
+    de: { h1: 'Seite nicht gefunden', title: 'Seite nicht gefunden', href: '/de/', home: 'Zur Startseite' },
+    tr: { h1: 'Aradığınız sayfa bulunamadı.', title: 'Aradığınız sayfa bulunamadı', href: '/tr/', home: 'Ana sayfaya dön' },
   };
   const open = async (path, lang, width) => {
     const ctx = await browser.newContext({ viewport: { width, height: 800 }, locale: 'en-US' });
@@ -1333,7 +1333,7 @@ await test('404 page: served for a missing address at any depth, three languages
       title: document.title, over: document.documentElement.scrollWidth - document.documentElement.clientWidth, border: getComputedStyle(document.querySelector('.card')).borderTopWidth, tabbable: document.querySelectorAll('a[href], button').length }));
     const { status, problems } = p; const hosts = [...p.hosts].filter((h) => h !== new URL(base).host); await p.context().close();
     if (status !== 404) throw new Error(lang + ': status ' + status);
-    if (info.lang !== lang || info.h1 !== w.h1 || info.href !== w.href || info.home !== w.home || !info.title.startsWith(w.h1)) throw new Error(lang + ' ' + width + ': ' + JSON.stringify(info));
+    if (info.lang !== lang || info.h1 !== w.h1 || info.href !== w.href || info.home !== w.home || !info.title.startsWith(w.title)) throw new Error(lang + ' ' + width + ': ' + JSON.stringify(info));
     if (info.border !== '1px') throw new Error(lang + ': the stylesheet did not load at a deep address');
     if (info.tabbable !== 1) throw new Error(lang + ': expected exactly one link or button, found ' + info.tabbable);
     if (info.over > 0) throw new Error(lang + ' ' + width + ': horizontal overflow ' + info.over);
