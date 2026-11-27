@@ -193,7 +193,7 @@
   "pr.intro": "Contributions I have submitted to other projects (saved snapshot from {date}).",
   "pr.open": "Open",
   "pr.merged": "Merged",
-  "contact.emailHint": "To send your message, a confirmation link will be sent to this address. Your message will be delivered once you have opened the link and confirmed it. If you do not confirm your email address, your message is stored temporarily for up to 15 minutes and then deleted.",
+  "contact.emailHint": "To send your message, a verification link will be sent to your email address. Your message will be delivered once you open the link and confirm your email address. If you do not verify your email address within 15 minutes, your message will be stored temporarily and automatically deleted when the 15-minute period expires.",
   "contact.resend": "Send a new link",
   "contact.resendDone": "A new confirmation link has been sent to {email}. The previous link no longer works. The new one is valid for 15 minutes.",
   "contact.err.addressLimit": "Too many confirmation emails have been requested for this address. Please try again tomorrow.",

@@ -193,7 +193,7 @@
   "pr.intro": "Beiträge, die ich bei anderen Projekten eingereicht habe (gespeicherter Stand vom {date}).",
   "pr.open": "Offen",
   "pr.merged": "Zusammengeführt",
-  "contact.emailHint": "Damit Ihre Nachricht gesendet werden kann, wird an diese Adresse ein Bestätigungslink geschickt. Ihre Nachricht wird zugestellt, sobald Sie den Link geöffnet und bestätigt haben. Wenn Sie Ihre E-Mail-Adresse nicht bestätigen, wird Ihre Nachricht höchstens 15 Minuten lang vorübergehend gespeichert und danach gelöscht.",
+  "contact.emailHint": "Damit Sie Ihre Nachricht senden können, wird ein Bestätigungslink an Ihre E-Mail-Adresse gesendet. Ihre Nachricht wird übermittelt, sobald Sie den Link öffnen und Ihre E-Mail-Adresse bestätigen. Wenn Sie Ihre E-Mail-Adresse nicht innerhalb von 15 Minuten bestätigen, wird Ihre Nachricht vorübergehend gespeichert und nach Ablauf dieser Frist automatisch gelöscht.",
   "contact.resend": "Neuen Link senden",
   "contact.resendDone": "Ein neuer Bestätigungslink wurde an {email} gesendet. Der vorherige Link funktioniert nicht mehr. Der neue ist 15 Minuten gültig.",
   "contact.err.addressLimit": "Für diese Adresse wurden zu viele Bestätigungs-E-Mails angefordert. Bitte versuchen Sie es morgen erneut.",
