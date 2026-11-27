@@ -202,7 +202,7 @@
   "contact.err.resendLimit": "Für diese Nachricht können keine weiteren Links gesendet werden. Bitte senden Sie das Formular später erneut ab.",
   "verify.pageTitle": "Bestätigen Sie Ihre E-Mail-Adresse | Önder Nuray",
   "verify.title": "Bestätigen Sie Ihre E-Mail-Adresse",
-  "verify.intro": "Klicken Sie auf die Schaltfläche unten, um Ihre E-Mail-Adresse zu bestätigen und Ihre Nachricht zu senden. Der Bestätigungslink ist 15 Minuten gültig und kann nur einmal verwendet werden.",
+  "verify.intro": "Klicken Sie auf die Schaltfläche unten, um Ihre E-Mail-Adresse zu bestätigen und Ihre Nachricht zu senden. Der Bestätigungslink ist 15 Minuten gültig und kann nur einmal verwendet werden. Wenn Sie Ihre E-Mail-Adresse nicht innerhalb dieser Frist bestätigen, wird Ihre Nachricht vorübergehend gespeichert und nach Ablauf der 15 Minuten automatisch gelöscht.",
   "verify.button": "E-Mail-Adresse bestätigen und Nachricht senden",
   "verify.working": "Wird gesendet …",
   "verify.doneTitle": "E-Mail-Adresse bestätigt",

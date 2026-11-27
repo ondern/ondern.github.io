@@ -202,7 +202,7 @@
   "contact.err.resendLimit": "Bu mesaj için daha fazla bağlantı gönderilemez. Lütfen formu daha sonra yeniden gönderin.",
   "verify.pageTitle": "E-posta adresinizi doğrulayın | Önder Nuray",
   "verify.title": "E-posta adresinizi doğrulayın",
-  "verify.intro": "E-posta adresinizi doğrulamak ve mesajınızı göndermek için aşağıdaki düğmeye tıklayın. Doğrulama bağlantısı tek kullanımlıktır ve 15 dakika boyunca geçerlidir.",
+  "verify.intro": "E-posta adresinizi doğrulamak ve mesajınızı göndermek için aşağıdaki düğmeye tıklayın. Doğrulama bağlantısı tek kullanımlıktır ve 15 dakika boyunca geçerlidir. E-posta adresinizi bu süre içinde doğrulamazsanız mesajınız geçici olarak saklanır ve 15 dakikanın sonunda otomatik olarak silinir.",
   "verify.button": "E-posta adresini doğrula ve mesajı gönder",
   "verify.working": "Gönderiliyor…",
   "verify.doneTitle": "E-posta adresiniz doğrulandı.",
