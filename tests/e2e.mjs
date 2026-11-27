@@ -1304,6 +1304,50 @@ await test('Text stays selectable and copy is not intercepted (no copy blocking)
   if (ctxPrevented || copyPrevented) throw new Error('context menu or copy intercepted');
 });
 
+await test('404 page: served for a missing address at any depth, three languages, one button home, noindex, nothing external, no overflow', async () => {
+  const html = readFileSync('404.html', 'utf8');
+  if (!/<meta name="robots" content="noindex">/.test(html)) throw new Error('404.html must be noindex');
+  if (/(src|href)="(?!\/|https?:|#)[^"]/.test(html)) throw new Error('404.html must use root-relative paths only');
+  const want = {
+    en: { h1: 'Page not found', href: '/', home: 'Back to the homepage' },
+    de: { h1: 'Seite nicht gefunden', href: '/de/', home: 'Zur Startseite' },
+    tr: { h1: 'Sayfa bulunamadı', href: '/tr/', home: 'Ana sayfaya dön' },
+  };
+  const open = async (path, lang, width) => {
+    const ctx = await browser.newContext({ viewport: { width, height: 800 }, locale: 'en-US' });
+    if (lang) await ctx.addInitScript((l) => { try { localStorage.setItem('lang', l); } catch (e) { /* ignore */ } }, lang);
+    const p = await ctx.newPage();
+    p.problems = []; p.hosts = new Set();
+    p.on('console', (m) => { if (m.type() === 'error' && !/status of 404/.test(m.text()) || /Content Security Policy|Refused/i.test(m.text())) p.problems.push(m.text()); });
+    p.on('pageerror', (e) => p.problems.push(String(e)));
+    p.on('request', (r) => { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol)) p.hosts.add(u.host); });
+    await p.route('**' + path, (r) => r.fulfill({ status: 404, contentType: 'text/html; charset=utf-8', body: html }));
+    const res = await p.goto(base + path);
+    await p.waitForLoadState('networkidle');
+    p.status = res.status();
+    return p;
+  };
+  for (const [lang, w] of Object.entries(want)) for (const width of [390, 1280]) {
+    const p = await open('/no/such/page', lang, width);
+    const info = await p.evaluate(() => ({ lang: document.documentElement.lang, h1: document.querySelector('h1').textContent, href: document.getElementById('nf-home').getAttribute('href'), home: document.getElementById('nf-home').textContent,
+      title: document.title, over: document.documentElement.scrollWidth - document.documentElement.clientWidth, border: getComputedStyle(document.querySelector('.card')).borderTopWidth, tabbable: document.querySelectorAll('a[href], button').length }));
+    const { status, problems } = p; const hosts = [...p.hosts].filter((h) => h !== new URL(base).host); await p.context().close();
+    if (status !== 404) throw new Error(lang + ': status ' + status);
+    if (info.lang !== lang || info.h1 !== w.h1 || info.href !== w.href || info.home !== w.home || !info.title.startsWith(w.h1)) throw new Error(lang + ' ' + width + ': ' + JSON.stringify(info));
+    if (info.border !== '1px') throw new Error(lang + ': the stylesheet did not load at a deep address');
+    if (info.tabbable !== 1) throw new Error(lang + ': expected exactly one link or button, found ' + info.tabbable);
+    if (info.over > 0) throw new Error(lang + ' ' + width + ': horizontal overflow ' + info.over);
+    if (hosts.length) throw new Error('external hosts contacted: ' + hosts.join(', '));
+    if (problems.length) throw new Error(lang + ': ' + problems.join(' | '));
+  }
+  const d = await open('/de/missing/deep', null, 390);
+  const dl = await d.evaluate(() => document.documentElement.lang); await d.context().close();
+  if (dl !== 'de') throw new Error('a missing address under /de/ must show German, got ' + dl);
+  const e = await open('/missing', null, 390);
+  const el = await e.evaluate(() => document.documentElement.lang); await e.context().close();
+  if (el !== 'en') throw new Error('browser language en-US must show English, got ' + el);
+});
+
 // Automated accessibility (axe-core). Automated tools cannot prove WCAG conformance.
 const axeSrc = readFileSync('node_modules/axe-core/axe.min.js', 'utf8');
 await test('axe-core: no violations (3 languages x light/dark)', async () => {

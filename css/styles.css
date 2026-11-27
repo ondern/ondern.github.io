@@ -237,6 +237,10 @@ textarea.control { resize: vertical; }
 /* Problems with one field appear as small text under that field; problems with the security check appear under the widget. */
 .field-error { margin: 0; max-width: none; text-align: left; hyphens: manual; font-size: .875rem; font-weight: 500; line-height: 1.45; color: var(--danger); }
 .field-error:empty { display: none; }
+.notfound-page .card { max-width: 40rem; margin-inline: auto; text-align: center; } /* 404 page: short, centred message and one button */
+.notfound-page .card p { text-align: center; hyphens: manual; }
+.notfound-page .notfound-code { font-size: var(--fs-display); font-weight: 700; line-height: 1; letter-spacing: -.025em; margin: 0 0 var(--sp-3); color: var(--accent); }
+.notfound-page .cta-row { justify-content: center; margin-bottom: 0; }
 .verify-page .card { max-width: 40rem; margin-inline: auto; } /* confirmation page of the e-mail link */
 .field-hint { margin: 0; max-width: none; text-align: justify; text-justify: inter-word; hyphens: auto; overflow-wrap: break-word; font-size: .875rem; line-height: 1.45; color: var(--muted); } /* permanent explanation under a field (the e-mail field) */
 .verify-page .card { max-width: 40rem; margin-inline: auto; } /* confirmation page of the e-mail link */
