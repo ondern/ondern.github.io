@@ -20,4 +20,7 @@
   } catch (e) {
     root.dataset.theme = 'light';
   }
+  // Browser toolbar colour (mobile) follows the page theme; ui.js keeps it in sync when the visitor switches.
+  var tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', root.dataset.theme === 'dark' ? '#12151b' : '#f7f9fc');
 })();

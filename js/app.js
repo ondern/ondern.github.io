@@ -1,5 +1,5 @@
 import { initI18n } from './i18n.js';
-import { initTheme, initNav, initReveal } from './ui.js';
+import { initTheme, initNav, initReveal, initBackToTop } from './ui.js';
 import { initCredentials } from './credentials.js';
 import { initGithub } from './github.js';
 import { initContact } from './contact.js';
@@ -10,6 +10,7 @@ async function main() {
   initNav();
   initContact();
   initReveal();
+  initBackToTop();
   // Optional data sources: failures are handled inside each module and never block the page.
   initCredentials();
   initGithub();

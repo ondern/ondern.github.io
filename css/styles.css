@@ -327,3 +327,33 @@ a.provider-link[data-provider="github-pages"]::before { background-image: url(".
   :root { --header-h: 3.25rem; }
   .hero, .section { padding-block: var(--sp-6); }
 }
+/* Back to top: floating button, shown by js/ui.js once the hero has scrolled out of view ---------- */
+.back-to-top { position: fixed; right: max(var(--sp-4), env(safe-area-inset-right)); bottom: max(var(--sp-4), env(safe-area-inset-bottom)); z-index: 40; display: inline-grid; place-items: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; background: var(--accent); color: var(--accent-contrast); box-shadow: var(--shadow); }
+.back-to-top[hidden] { display: none; }
+.back-to-top:hover { background: color-mix(in srgb, var(--accent) 92%, var(--accent-contrast)); }
+@media (forced-colors: active) { .back-to-top { border: 1px solid CanvasText; } }
+/* Print / save as PDF: a plain light CV without navigation, forms and controls ---------------------- */
+@media print {
+  @page { margin: 14mm; }
+  :root, :root[data-theme="dark"] {
+    color-scheme: light; --bg: #fff; --bg-alt: #fff; --surface: #fff; --text: #000; --muted: #222; --border: #999; --border-strong: #666;
+    --accent: #0b3d91; --primary-container: #fff; --on-primary-container: #000; --secondary-container: #fff; --on-secondary-container: #000;
+    --fs-body: 10.5pt; --fs-lead: 11.5pt; --fs-h2: 16pt; --fs-h3: 12pt; --fs-display: 26pt; --sp-8: 1.25rem;
+  }
+  html, body { background: #fff; color: #000; }
+  *, *::before, *::after { box-shadow: none !important; text-shadow: none !important; backdrop-filter: none !important; }
+  .skip-link, .site-header, .back-to-top, .cta-row, .social-row, #contact-form, .toolbar, #cred-toggle, #cred-dialog, .footer-links { display: none !important; }
+  .js .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
+  .hero, .section, .section.alt { background: none; padding-block: var(--sp-4); }
+  .hero-grid, .contact-grid { display: block; }
+  .hero-visual { margin: 0 0 var(--sp-3); }
+  .portrait { width: 3.5cm; height: 3.5cm; }
+  main p, main .meta, .site-footer p { text-align: left !important; hyphens: manual !important; }
+  h2, h3 { break-after: avoid; }
+  .card, li { break-inside: avoid; }
+  main a { color: #0b3d91; text-decoration: underline; }
+  main a[href^="http"]:not(.icon-link)::after { content: " (" attr(href) ")"; font-size: .85em; word-break: break-all; }
+  .channels a.icon-link { display: inline-flex; align-items: center; gap: .5rem; width: auto; height: auto; padding: 0; border: 0; border-radius: 0; background: none; color: #000; }
+  .channels a.icon-link::after { content: attr(href); font-size: 10pt; word-break: break-all; }
+  .site-footer { border-top: 1px solid #999; padding-block: var(--sp-3); }
+}

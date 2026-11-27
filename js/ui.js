@@ -5,8 +5,16 @@ export function initTheme() {
       const next = root.dataset.theme === 'dark' ? 'light' : 'dark';
       root.dataset.theme = next;
       try { localStorage.setItem('theme', next); } catch (e) { /* ignore */ }
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', next === 'dark' ? '#12151b' : '#f7f9fc');
     });
   });
+}
+// Floating "back to top" button: shown once the hero section has scrolled out of view (IntersectionObserver, no scroll listener).
+export function initBackToTop() {
+  const btn = document.querySelector('.back-to-top');
+  const hero = document.getElementById('top');
+  if (!btn || !hero || !('IntersectionObserver' in window)) return;
+  new IntersectionObserver(([en]) => { btn.hidden = en.isIntersecting; }).observe(hero);
 }
 export function initNav() {
   const btn = document.getElementById('menu-btn');
