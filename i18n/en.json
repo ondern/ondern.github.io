@@ -200,9 +200,9 @@
   "contact.err.expired": "The confirmation time has run out. Please send the form again.",
   "contact.err.resendWait": "Please wait a minute before requesting another link.",
   "contact.err.resendLimit": "No further links can be sent for this message. Please send the form again later.",
-  "verify.pageTitle": "Confirm your email address | Önder Nuray",
-  "verify.title": "Confirm your email address",
-  "verify.intro": "Click the button below to confirm your email address and send your message. The confirmation link can be used only once and is valid for 15 minutes.",
+  "verify.pageTitle": "Verify Your Email Address | Önder Nuray",
+  "verify.title": "Verify Your Email Address",
+  "verify.intro": "Click the button below to verify your email address and send your message. The verification link is valid for 15 minutes and can only be used once.",
   "verify.button": "Confirm email address and send message",
   "verify.working": "Sending…",
   "verify.doneTitle": "Your email address has been confirmed.",
@@ -211,5 +211,5 @@
   "verify.rate": "Too many attempts. Please wait a moment and try again.",
   "verify.network": "The connection failed. Please check your network and press the button again.",
   "verify.server": "Your message could not be sent. Please press the button again in a moment; the link stays valid until it expires.",
-  "verify.home": "Back to the website"
+  "verify.home": "Return to Website"
 }
