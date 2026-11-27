@@ -12,6 +12,7 @@ const PROVIDER_LINKS = {
   Cloudflare: 'https://www.cloudflare.com/',
   Resend: 'https://resend.com/',
   Zoho: 'https://www.zoho.com',
+  'GitHub Pages': 'https://pages.github.com/',
 };
 const PROVIDER_RE = new RegExp('\\b(' + Object.keys(PROVIDER_LINKS).join('|') + ')\\b', 'g');
 
@@ -26,7 +27,7 @@ function setTextWithLinks(el, text) {
     a.rel = 'noopener';
     a.textContent = m[1];
     a.className = 'provider-link';
-    a.dataset.provider = m[1].toLowerCase();
+    a.dataset.provider = m[1].toLowerCase().replace(/\s+/g, '-');
     nodes.push(a);
     last = m.index + m[0].length;
   }

@@ -9,7 +9,8 @@ They are stored here, so visitors' browsers never contact those services to load
 | `resend.png` | https://resend.com/static/favicons/favicon-marketing@180x180.png | 96x96 PNG, scaled down |
 | `zoho.png` | https://www.zohowebstatic.com/sites/zweb/images/favicon.ico | 48x48 PNG (largest frame of the icon) |
 
-Downloaded on 2026-11-26. The icons are trademarks of their owners (Cloudflare, Inc., Resend, Zoho Corporation). They are used
+| `github-pages.png` | https://pages.github.com/favicon.ico | 32x32 PNG (largest frame of the icon); shown in the footer notice only |
+Downloaded on 2026-11-26 (`github-pages.png`: later). The icons are trademarks of their owners (Cloudflare, Inc., Resend, Zoho Corporation). They are used
 only to identify the service a link leads to, and the site is not affiliated with or endorsed by them. To refresh an icon, download
 the favicon again, decode it to a PNG of the same size and replace the file.
 

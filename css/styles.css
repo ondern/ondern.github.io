@@ -263,6 +263,7 @@ a.provider-link[data-provider="cloudflare"]::before { background-image: url("../
 a.provider-link[data-provider="resend"]::before { background-image: url("../assets/icons/providers/resend.png"); }
 a.provider-link[data-provider="duolingo"]::before { background-image: url("../assets/icons/languages/duolingo-score.svg"); }
 a.provider-link[data-provider="zoho"]::before { background-image: url("../assets/icons/providers/zoho.png"); background-color: #fff; background-size: 84%; box-shadow: 0 0 0 1px rgb(0 0 0 / .16); } /* transparent logo: white tile for both themes */
+a.provider-link[data-provider="github-pages"]::before { background-image: url("../assets/icons/providers/github-pages.png"); border-radius: 50%; box-shadow: 0 0 0 1px rgb(128 128 128 / .45); } /* round icon: keep it round and visible on both light and dark backgrounds */
 @media (forced-colors: active) { a.provider-link::before { display: none; } } /* background images are not shown there; do not leave a gap */
 .footer-links { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); }
 

@@ -1193,7 +1193,7 @@ await test('Keyboard: skip link is first tab stop', async () => {
 });
 
 await test('Provider icons: Cloudflare, Resend and Zoho carry a small local icon on the left of the link text in both privacy notices (en/de/tr; 390/768/1280 px); no third-party request, no overflow, hidden in forced-colours mode', async () => {
-  const want = { cloudflare: ['Cloudflare', 'https://www.cloudflare.com/'], resend: ['Resend', 'https://resend.com/'], zoho: ['Zoho', 'https://www.zoho.com/'] };
+  const want = { cloudflare: ['Cloudflare', 'https://www.cloudflare.com/'], resend: ['Resend', 'https://resend.com/'], zoho: ['Zoho', 'https://www.zoho.com/'], 'github-pages': ['GitHub Pages', 'https://pages.github.com/'] };
   for (const [provider] of Object.entries(want)) {
     const res = await fetch(base + '/assets/icons/providers/' + provider + '.png');
     const bytes = Buffer.from(await res.arrayBuffer());
@@ -1215,9 +1215,9 @@ await test('Provider icons: Cloudflare, Resend and Zoho carry a small local icon
     const external = [...p.hosts].filter((h) => h !== new URL(base).host);
     await p.context().close();
     const where = lang + ' ' + width + ' px: ';
-    if (info.links.length !== 6) throw new Error(where + 'expected 3 provider links in each notice, found ' + info.links.length);
+    if (info.links.length !== 7) throw new Error(where + 'expected 3 provider links in the form notice and 4 in the footer notice, found ' + info.links.length);
     info.links.forEach((l, i) => {
-      const provider = ['cloudflare', 'resend', 'zoho'][i % 3];
+      const provider = ['cloudflare', 'resend', 'zoho', 'cloudflare', 'resend', 'zoho', 'github-pages'][i];
       if (l.provider !== provider || l.text !== want[provider][0] || !/provider-link/.test(l.cls)) throw new Error(where + 'wrong link or order: ' + JSON.stringify(l));
       if (l.href !== want[provider][1] || l.target !== '_blank' || !/noopener/.test(l.rel)) throw new Error(where + provider + ': link target changed: ' + l.href);
       if (l.content !== '""') throw new Error(where + provider + ': the icon must not add text (decorative): ' + l.content);
@@ -1234,7 +1234,7 @@ await test('Provider icons: Cloudflare, Resend and Zoho carry a small local icon
   await fp.goto(base + '/?lang=en'); await fp.waitForLoadState('networkidle');
   const shown = await fp.evaluate(() => [...document.querySelectorAll('#form-privacy a.provider-link, footer .footer-notice a.provider-link')].map((a) => getComputedStyle(a, '::before').display));
   await ctx.close();
-  if (shown.length !== 6 || shown.some((d) => d !== 'none')) throw new Error('forced-colours mode must not reserve a gap for the icons: ' + shown);
+  if (shown.length !== 7 || shown.some((d) => d !== 'none')) throw new Error('forced-colours mode must not reserve a gap for the icons: ' + shown);
 });
 await test('Footer notice: exact text in en/de/tr (includes the contact-form processing disclosure), no legal page or legal links, legal.html is gone', async () => {
   const want = {"tr":"Bu site, kişisel çevrim içi özgeçmişim ve portföyümdür. Kullanıcı hesabı, ziyaretçi analitiği veya reklam hizmetleri kullanmamaktadır. İletişim formu aracılığıyla gönderilen mesajlar, botlara karşı koruma için Cloudflare; e-posta gönderimi için Resend ve Zoho hizmetleri kullanılarak işlenir. Lütfen mesajlarınızda hassas kişisel bilgilerinizi paylaşmayın. Mesajınız ve e-posta adresiniz yalnızca size yanıt vermek amacıyla kullanılabilir. Bu amaç için gerekli olduğu sürece saklanabilir. Verilerinizin silinmesini talep etmek için iletişim formu üzerinden iletişime geçebilirsiniz. Dil ve tema tercihleriniz tarayıcınızda saklanır. Site GitHub Pages üzerinde barındırılmaktadır; barındırma hizmeti kapsamında teknik istek verileri işlenebilir. Harici bağlantılar, ilgili hizmetlerin kendi web sitelerine yönlendirir.","en":"This site is my personal online CV and portfolio. It does not use user accounts, visitor analytics, or advertising services. Messages sent through the contact form are processed using Cloudflare for bot protection and Resend and Zoho for email delivery. Please do not share sensitive personal information in your messages. Your message and email address may be used solely to reply to you. They may be retained for as long as necessary for that purpose. To request the deletion of your data, you can get in touch through the contact form. Your language and theme preferences are stored in your browser. The site is hosted on GitHub Pages; technical request data may be processed as part of the hosting service. External links lead to the respective services’ own websites.","de":"Diese Website ist mein persönlicher Online-Lebenslauf und mein Portfolio. Sie verwendet keine Benutzerkonten, keine Besucheranalyse und keine Werbedienste. Über das Kontaktformular gesendete Nachrichten werden zum Schutz vor Bots mithilfe von Cloudflare und für den E-Mail-Versand mithilfe von Resend und Zoho verarbeitet. Bitte teilen Sie in Ihren Nachrichten keine sensiblen personenbezogenen Daten mit. Ihre Nachricht und Ihre E-Mail-Adresse dürfen ausschließlich zur Beantwortung Ihrer Anfrage verwendet werden. Sie können so lange gespeichert werden, wie es für diesen Zweck erforderlich ist. Wenn Sie die Löschung Ihrer Daten beantragen möchten, können Sie mich über das Kontaktformular kontaktieren. Ihre Sprach- und Designeinstellungen werden in Ihrem Browser gespeichert. Die Website wird auf GitHub Pages gehostet; im Rahmen des Hostings können technische Anfragedaten verarbeitet werden. Externe Links führen zu den Websites der jeweiligen Anbieter."};
@@ -1244,7 +1244,7 @@ await test('Footer notice: exact text in en/de/tr (includes the contact-form pro
     await p.context().close();
     if (d.notice !== want[lang]) throw new Error(lang + ': notice differs: ' + d.notice);
     if (d.links.some((h) => /legal/i.test(h || ''))) throw new Error(lang + ': link to a legal page remains');
-    if (d.footerLinks.join() !== '#top,https://www.cloudflare.com/,https://resend.com/,https://www.zoho.com') throw new Error(lang + ': unexpected footer links ' + d.footerLinks);
+    if (d.footerLinks.join() !== '#top,https://www.cloudflare.com/,https://resend.com/,https://www.zoho.com,https://pages.github.com/') throw new Error(lang + ': unexpected footer links ' + d.footerLinks);
   }
   const res = await fetch(base + '/legal.html');
   if (res.status !== 404) throw new Error('legal.html still served: ' + res.status);
