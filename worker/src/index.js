@@ -47,18 +47,18 @@ const FROM_RE = /^(?:[^<>@\r\n]{1,60} )?<?noreply@nuray\.io>?$/;
 const ACK = {
   en: {
     notice: 'This email was sent automatically from noreply@nuray.io. Please do not reply to this message. Replies sent to this address are not read or processed, and may be rejected by the email system and returned to the sender as undeliverable.',
-    subject: 'Thank you for your message',
-    lines: () => ['Hello,', 'Thank you for getting in touch with me. I have received your message. Depending on my workload, I will do my best to get back to you as soon as possible.', 'Kind regards,'],
+    subject: 'Thank You for Your Message',
+    lines: () => ['Hello,', 'Thank you for getting in touch. I have received your message and will get back to you as soon as possible, depending on my current workload.', 'Kind regards,'],
   },
   de: {
     notice: 'Diese E-Mail wurde automatisch von noreply@nuray.io versendet. Bitte antworten Sie nicht auf diese Nachricht. Antworten an diese Adresse werden weder gelesen noch bearbeitet und können vom E-Mail-System abgelehnt und als unzustellbar an den Absender zurückgesendet werden.',
     subject: 'Vielen Dank für Ihre Nachricht',
-    lines: () => ['Guten Tag,', 'vielen Dank, dass Sie mit mir Kontakt aufgenommen haben. Ihre Nachricht ist bei mir eingegangen. Je nach Arbeitsaufkommen werde ich mich so bald wie möglich bei Ihnen melden.', 'Mit freundlichen Grüßen'],
+    lines: () => ['Guten Tag,', 'vielen Dank für Ihre Nachricht. Ich habe Ihre Nachricht erhalten und werde mich abhängig von meiner aktuellen Arbeitsbelastung so bald wie möglich bei Ihnen melden.', 'Mit freundlichen Grüßen'],
   },
   tr: {
     notice: 'Bu e-posta, noreply@nuray.io adresinden otomatik olarak gönderilmiştir. Lütfen bu iletiyi yanıtlamayınız. Bu adrese gönderilen yanıtlar okunmamakta ve işleme alınmamakta olup, e-posta sistemi tarafından kabul edilmeyerek göndericiye teslim edilemeden geri döndürülebilir.',
-    subject: 'Mesajınız için teşekkürler',
-    lines: () => ['Merhaba,', 'Benimle iletişime geçtiğiniz için teşekkür ederim. Mesajınız bana ulaştı. İş yoğunluğuma bağlı olarak en kısa sürede size geri dönüş yapmaya çalışacağım.', 'Saygılarımla,'],
+    subject: 'Mesajınız için teşekkür ederim',
+    lines: () => ['Merhaba,', 'Benimle iletişime geçtiğiniz için teşekkür ederim. Mesajınızı aldım. İş yoğunluğuma bağlı olarak size en kısa sürede geri dönüş yapacağım.', 'Saygılarımla,'],
   },
 };
 
