@@ -129,6 +129,12 @@ await test('Credentials: empty-data state (fixture with no items)', async () => 
   if (!/No credentials have been added/.test(s)) throw new Error(s);
 });
 
+await test('Print: all 20 credentials listed (also with print emulation only), Projects section and footer hidden', async () => {
+  const p = await newPage();
+  await p.emulateMedia({ media: 'print' });
+  const r = await p.evaluate(() => ({ n: [...document.querySelectorAll('#cred-grid > li')].filter((e) => e.offsetParent).length, proj: getComputedStyle(document.querySelector('#projects')).display, foot: getComputedStyle(document.querySelector('.site-footer')).display }));
+  if (r.n !== 20 || r.proj !== 'none' || r.foot !== 'none') throw new Error(JSON.stringify(r));
+});
 await test('Real credentials.json: 8 selected by default, 20 with show-all, expired marked, document images load', async () => {
   const p = await newPage();
   const n = await p.$$eval('#cred-grid li:not(.cred-print-only) .cred-card', (x) => x.length);
