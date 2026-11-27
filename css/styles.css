@@ -346,12 +346,16 @@ a.provider-link[data-provider="github-pages"]::before { background-image: url(".
   .hero, .section, .section.alt { background: none; padding-block: var(--sp-4); }
   .hero-grid, .contact-grid { display: block; }
   .hero-visual { margin: 0 0 var(--sp-3); }
-  .portrait { width: 3.5cm; height: 3.5cm; }
+  .hero-visual .portrait { width: 3.5cm; height: 3.5cm; border-radius: 6pt; }
   main p, main .meta, .site-footer p { text-align: left !important; hyphens: manual !important; }
   h2, h3 { break-after: avoid; }
+  .reveal > .lead, h3 + .meta, h3 + p { break-after: avoid; }
   .card, li { break-inside: avoid; }
+  .tags { break-inside: avoid; }
   main a { color: #0b3d91; text-decoration: underline; }
-  main a[href^="http"]:not(.icon-link)::after { content: " (" attr(href) ")"; font-size: .85em; word-break: break-all; }
+  /* Link addresses are not printed (they stay clickable in the PDF); the contact section prints its own addresses below. */
+  h3.justify[data-i18n="about.heading"] { text-align: left !important; max-width: none; margin-inline: 0; }
+  .status, .cred-card .tag, a.provider-link::before, #act-list, #act-intro, #projects h3[data-i18n="act.title"], #projects p:has(> a[data-i18n="act.profile"]) { display: none !important; }
   .channels a.icon-link { display: inline-flex; align-items: center; gap: .5rem; width: auto; height: auto; padding: 0; border: 0; border-radius: 0; background: none; color: #000; }
   .channels a.icon-link::after { content: attr(href); font-size: 10pt; word-break: break-all; }
   .site-footer { border-top: 1px solid #999; padding-block: var(--sp-3); }
