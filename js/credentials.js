@@ -89,11 +89,14 @@ function render() {
   // Default view is the curated selection; searching or filtering looks through everything.
   const curated = hasFeatured() && !state.showAll && !filtersActive();
   const list = state.items.filter((i) => matches(i) && (!curated || i.featured)).sort(compare);
+  // Entries hidden on screen stay in the DOM so a printout (also print emulation, where beforeprint may not fire) lists all of them; CSS shows them only in print.
+  const shown = new Set(list);
+  const all = [...state.items].sort(compare);
   status.textContent = list.length ? t('cred.count', { n: list.length }) : t('cred.empty');
   const toggle = $('cred-toggle');
   toggle.hidden = !hasFeatured() || filtersActive();
   toggle.textContent = state.showAll ? t('cred.showSelected') : t('cred.showAll', { n: state.items.length });
-  grid.replaceChildren(...list.map((item) => {
+  grid.replaceChildren(...all.map((item) => {
     const btn = el('button', { type: 'button', className: 'card cred-card' });
     btn.setAttribute('aria-label', t('cred.open', { name: item.title }));
     if (isHttps(item.imageUrl)) {
@@ -104,7 +107,7 @@ function render() {
       el('h3', { textContent: item.title }),
       el('span', { className: 'meta', textContent: [item.issuer, item.issuedOn && formatDate(item.issuedOn), isExpired(item) && t('cred.expiredOn', { date: formatDate(item.expiresOn) })].filter(Boolean).join(' · ') }));
     btn.addEventListener('click', () => showDetail(item));
-    return el('li', {}, btn);
+    return el('li', { className: shown.has(item) ? '' : 'cred-print-only' }, btn);
   }));
 }
 

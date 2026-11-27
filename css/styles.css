@@ -341,7 +341,7 @@ a.provider-link[data-provider="github-pages"]::before { background-image: url(".
   }
   html, body { background: #fff; color: #000; }
   *, *::before, *::after { box-shadow: none !important; text-shadow: none !important; backdrop-filter: none !important; }
-  .skip-link, .site-header, .back-to-top, .cta-row, .social-row, #contact-form, .toolbar, #cred-toggle, #cred-dialog { display: none !important; }
+  .skip-link, .site-header, .back-to-top, .cta-row, .social-row, #contact-form, .toolbar, #cred-toggle, #cred-dialog, #projects, .site-footer { display: none !important; }
   .js .reveal { opacity: 1 !important; transform: none !important; transition: none !important; }
   .hero, .section, .section.alt { background: none; padding-block: var(--sp-4); }
   .hero-grid, .contact-grid { display: block; }
@@ -349,7 +349,11 @@ a.provider-link[data-provider="github-pages"]::before { background-image: url(".
   .hero-visual .portrait { width: 3.5cm; height: 3.5cm; border-radius: 6pt; }
   main p, main .meta, .site-footer p { text-align: left !important; hyphens: manual !important; }
   h2, h3 { break-after: avoid; }
-  .reveal > .lead, h3 + .meta, h3 + p { break-after: avoid; }
+  .reveal > .lead, h2 + p, h3 + .meta, h3 + p, #pr-intro { break-after: avoid; }
+  .section .container > .reveal:has(> h2), h3:has(+ ul), h3:has(+ .meta + ul) { break-after: avoid; }
+  p { orphans: 3; widows: 3; }
+  .activity li { display: block; }
+  .activity li > * { display: block; }
   .card, li { break-inside: avoid; }
   .tags { break-inside: avoid; }
   main a { color: #0b3d91; text-decoration: underline; }
@@ -360,3 +364,5 @@ a.provider-link[data-provider="github-pages"]::before { background-image: url(".
   .channels a.icon-link::after { content: attr(href); font-size: 10pt; word-break: break-all; }
   .site-footer { border-top: 1px solid #999; padding-block: var(--sp-3); }
 }
+.cred-print-only { display: none; }
+@media print { .cred-print-only { display: list-item !important; } }

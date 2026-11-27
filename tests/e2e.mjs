@@ -131,19 +131,19 @@ await test('Credentials: empty-data state (fixture with no items)', async () => 
 
 await test('Real credentials.json: 8 selected by default, 20 with show-all, expired marked, document images load', async () => {
   const p = await newPage();
-  const n = await p.$$eval('#cred-grid .cred-card', (x) => x.length);
+  const n = await p.$$eval('#cred-grid li:not(.cred-print-only) .cred-card', (x) => x.length);
   if (n !== 8) throw new Error(`default view should show 8 selected cards, got ${n}`);
   if (!(await p.isVisible('#cred-toggle'))) throw new Error('show-all toggle missing');
   await p.click('#cred-toggle');
-  const all = await p.$$eval('#cred-grid .cred-card', (x) => x.length);
+  const all = await p.$$eval('#cred-grid li:not(.cred-print-only) .cred-card', (x) => x.length);
   if (all !== 20) throw new Error(`show all: ${all}`);
   const txt = await p.textContent('#cred-grid');
   if (!/Expired Jul 2015/.test(txt)) throw new Error('expired marker missing');
   await p.click('#cred-toggle');
-  if ((await p.$$eval('#cred-grid .cred-card', (x) => x.length)) !== 8) throw new Error('toggle back failed');
+  if ((await p.$$eval('#cred-grid li:not(.cred-print-only) .cred-card', (x) => x.length)) !== 8) throw new Error('toggle back failed');
   for (const name of ['Apple Certified Support Professional 10.6', 'ITIL v3 Foundation', 'VMware Certified Professional (VCP5)', 'Certified Ethical Hacker v9.0 Training', 'Start Deutsch 1', 'Start Deutsch 2']) {
     await p.fill('#cred-search', name);
-    await p.click('#cred-grid .cred-card >> nth=0');
+    await p.click('#cred-grid li:not(.cred-print-only) .cred-card >> nth=0');
     await p.waitForSelector('#cred-dialog img');
     await p.waitForFunction(() => { const i = document.querySelector('#cred-dialog img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 5000 }).catch(() => {});
     const ok = await p.$eval('#cred-dialog img', (i) => i.complete && i.naturalWidth > 0 && i.alt.includes('certificate'));
@@ -151,7 +151,7 @@ await test('Real credentials.json: 8 selected by default, 20 with show-all, expi
     await p.keyboard.press('Escape');
   }
   // a Credly-backed item exposes its verification link and an expired label
-  await p.fill('#cred-search', 'Cloud Practitioner'); await p.click('#cred-grid .cred-card >> nth=0');
+  await p.fill('#cred-search', 'Cloud Practitioner'); await p.click('#cred-grid li:not(.cred-print-only) .cred-card >> nth=0');
   const href = await p.$eval('#cred-dialog a', (a) => a.href);
   const dt = await p.$$eval('#cred-dialog dt', (x) => x.map((e) => e.textContent).join('|'));
   await p.context().close();
@@ -188,7 +188,7 @@ await test('Profile content: 3 jobs, 2 degrees, portrait image, no placeholders 
 
 await test('Credentials (fixture data): search, filter, sort, dialog, language re-render', async () => {
   const p = await newPage({ credentials: true });
-  const titles = () => p.$$eval('#cred-grid h3', (n) => n.map((x) => x.textContent));
+  const titles = () => p.$$eval('#cred-grid li:not(.cred-print-only) h3', (n) => n.map((x) => x.textContent));
   if ((await titles()).length !== 3) throw new Error('expected 3 cards');
   if ((await titles())[0] !== 'Test Badge Beta') throw new Error('date sort wrong');
   await p.fill('#cred-search', 'alpha');
@@ -200,7 +200,7 @@ await test('Credentials (fixture data): search, filter, sort, dialog, language r
   await p.fill('#cred-search', 'zzzz');
   if (!/No credentials match/.test(await p.textContent('#cred-status'))) throw new Error('no-match state missing');
   await p.fill('#cred-search', '');
-  await p.click('#cred-grid .cred-card >> nth=0');
+  await p.click('#cred-grid li:not(.cred-print-only) .cred-card >> nth=0');
   if (!(await p.isVisible('#cred-dialog'))) throw new Error('dialog not open');
   await p.keyboard.press('Escape');
   if (await p.isVisible('#cred-dialog')) throw new Error('Escape did not close dialog');
@@ -1007,7 +1007,7 @@ await test('Navigation: "Certifications" label in en/de/tr (desktop and mobile),
       const p = await newPage({ path: '/?lang=' + lang, viewport: vp });
       const nav = await p.$$eval('#primary-nav a', (a) => a.map((x) => [x.getAttribute('href'), x.textContent.trim()]));
       const missing = await p.evaluate((h) => h.filter((x) => !document.querySelector(x)), hrefs);
-      const certCards = await p.$$eval('#credentials #cred-grid > *', (n) => n.length);
+      const certCards = await p.$$eval('#credentials #cred-grid > li:not(.cred-print-only)', (n) => n.length);
       const eduCards = await p.$$eval('#education .card', (n) => n.length);
       const labels = nav.map((n) => n[1]);
       if (nav.map((n) => n[0]).join() !== hrefs.join()) throw new Error(lang + ': nav hrefs ' + nav.map((n) => n[0]));
@@ -1114,7 +1114,7 @@ await test('Goethe A1/A2: each image belongs to its entry; ID + verification lin
   const cases = [['Start Deutsch 2', '1310-AA2A-0002378592', 'goethe-a2'], ['Start Deutsch 1', '1310-ASA1-0002264713', 'goethe-a1']];
   for (const [name, id, file] of cases) {
     await p.fill('#cred-search', name);
-    await p.click('#cred-grid .cred-card >> nth=0');
+    await p.click('#cred-grid li:not(.cred-print-only) .cred-card >> nth=0');
     await p.waitForFunction(() => { const i = document.querySelector('#cred-dialog img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 5000 });
     const d = await p.$eval('#cred-dialog', (e) => ({ text: e.textContent, src: e.querySelector('img').getAttribute('src'), alt: e.querySelector('img').alt, href: e.querySelector('a')?.href, scroll: e.scrollTop }));
     await p.keyboard.press('Escape');
@@ -1145,8 +1145,8 @@ await test('CBT Nuggets item: completion date 17 December 2016 in en/de/tr, lear
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
     await p.fill('#cred-search', 'Ethical');
-    const card = await p.textContent('#cred-grid .cred-card');
-    await p.click('#cred-grid .cred-card >> nth=0');
+    const card = await p.textContent('#cred-grid li:not(.cred-print-only) .cred-card');
+    await p.click('#cred-grid li:not(.cred-print-only) .cred-card >> nth=0');
     await p.waitForFunction(() => { const i = document.querySelector('#cred-dialog img'); return i && i.complete && i.naturalWidth > 0; }, null, { timeout: 5000 });
     const d = await p.$eval('#cred-dialog', (e) => ({ text: e.textContent, links: e.querySelectorAll('a').length, alt: e.querySelector('img').alt }));
     await p.context().close();
@@ -1258,7 +1258,7 @@ await test('Privacy claims match behaviour: no third-party hosts, no cookies, on
   p.on('request', (r) => { const u = new URL(r.url()); if (/^https?:$/.test(u.protocol)) hosts.add(u.host); });
   await p.goto(base + '/'); await p.waitForLoadState('networkidle');
   await p.selectOption('#lang-select', 'de'); await p.click('[data-theme-toggle]');
-  await p.fill('#cred-search', 'ITIL'); await p.click('#cred-grid .cred-card >> nth=0'); await p.keyboard.press('Escape');
+  await p.fill('#cred-search', 'ITIL'); await p.click('#cred-grid li:not(.cred-print-only) .cred-card >> nth=0'); await p.keyboard.press('Escape');
   await p.fill('#cred-search', 'typed search text');
   await p.reload(); await p.waitForLoadState('networkidle');
   const cookies = await ctx.cookies();
@@ -1278,10 +1278,10 @@ await test('Featured credentials: the exact eight, in the exact order, identical
     'Cisco Certified Network Associate Routing and Switching (CCNA Routing and Switching)', 'Goethe-Zertifikat A2 / Start Deutsch 2', 'Goethe-Zertifikat A1 / Start Deutsch 1'];
   for (const lang of ['en', 'de', 'tr']) {
     const p = await newPage({ path: '/?lang=' + lang });
-    const cards = await p.$$eval('#cred-grid .cred-card', (n) => n.map((c) => ({ title: c.querySelector('h3').textContent, meta: c.querySelector('.meta').textContent })));
+    const cards = await p.$$eval('#cred-grid li:not(.cred-print-only) .cred-card', (n) => n.map((c) => ({ title: c.querySelector('h3').textContent, meta: c.querySelector('.meta').textContent })));
     await p.click('#cred-toggle');
-    const first8 = await p.$$eval('#cred-grid .cred-card h3', (n) => n.slice(0, 8).map((x) => x.textContent));
-    const total = await p.$$eval('#cred-grid .cred-card', (n) => n.length);
+    const first8 = await p.$$eval('#cred-grid li:not(.cred-print-only) .cred-card h3', (n) => n.slice(0, 8).map((x) => x.textContent));
+    const total = await p.$$eval('#cred-grid li:not(.cred-print-only) .cred-card', (n) => n.length);
     await p.context().close();
     if (cards.map((c) => c.title).join('|') !== want.join('|')) throw new Error(lang + ': default order ' + cards.map((c) => c.title).join(' | '));
     if (first8.join('|') !== want.join('|') || total !== 20) throw new Error(lang + ': show-all order/total ' + total);
