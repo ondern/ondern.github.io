@@ -8,7 +8,8 @@ const PORT = Number(process.env.PORT) || 4173;
 http.createServer((req, res) => {
   let p = normalize(decodeURIComponent(new URL(req.url, 'http://x').pathname)).replace(/^([/\\])+/, '');
   if (!p) p = 'index.html';
-  const f = join(root, p);
+  let f = join(root, p);
+  if (existsSync(f) && statSync(f).isDirectory() && existsSync(join(f, 'index.html'))) f = join(f, 'index.html');
   if (!f.startsWith(root) || /node_modules|\.git/.test(p) || !existsSync(f) || statSync(f).isDirectory()) { res.writeHead(404); return res.end('Not found'); }
   res.writeHead(200, { 'Content-Type': MIME[extname(f)] || 'application/octet-stream', 'Cache-Control': 'public, max-age=600' });
   let body = readFileSync(f);

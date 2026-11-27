@@ -116,7 +116,7 @@ export async function initCredentials() {
   if (!$('cred-grid')) return;
   const status = $('cred-status');
   try {
-    const res = await fetch('data/credentials.json');
+    const res = await fetch('/data/credentials.json');
     if (!res.ok) throw new Error(String(res.status));
     const data = await res.json();
     state.items = (Array.isArray(data.items) ? data.items : []).filter(valid);

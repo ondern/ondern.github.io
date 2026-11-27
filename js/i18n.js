@@ -1,5 +1,7 @@
 const SUPPORTED = ['en', 'de', 'tr'];
 const DEFAULT = 'en';
+// A localized entry page (de/, tr/) is served with its own <html lang>; the home page starts as the default.
+const PAGE_LANG = document.documentElement.lang;
 const cache = {};
 let current = DEFAULT;
 let dict = {};
@@ -38,6 +40,7 @@ function setTextWithLinks(el, text) {
 function pickInitial() {
   const q = new URLSearchParams(location.search).get('lang');
   if (SUPPORTED.includes(q)) return q;
+  if (SUPPORTED.includes(PAGE_LANG) && PAGE_LANG !== DEFAULT) return PAGE_LANG;
   try {
     const s = localStorage.getItem('lang');
     if (SUPPORTED.includes(s)) return s;
@@ -47,7 +50,7 @@ function pickInitial() {
 
 async function load(lang) {
   if (!cache[lang]) {
-    const res = await fetch(`i18n/${lang}.json`);
+    const res = await fetch(`/i18n/${lang}.json`);
     if (!res.ok) throw new Error(`i18n ${lang} ${res.status}`);
     cache[lang] = await res.json();
   }

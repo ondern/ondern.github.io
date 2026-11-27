@@ -48,7 +48,7 @@ export async function initGithub() {
   let featured = [];
   let pulls = [];
   try {
-    const res = await fetch('data/projects.json');
+    const res = await fetch('/data/projects.json');
     if (res.ok) {
       const data = await res.json();
       featured = (data.featured || []).filter((f) => f && /^[\w.-]+$/.test(f.name));

@@ -12,6 +12,7 @@ Static personal portfolio for [nuray.io](https://nuray.io), served by GitHub Pag
 | `i18n/{en,de,tr}.json` | All interface text, including the short footer notice. |
 | `data/credentials.json`, `data/projects.json` | Owner-maintained data. |
 | `CNAME` | Custom domain. Do not remove. |
+| `de/`, `tr/` | Generated localized entry pages (own URL, title, description and canonical per language). Do not edit by hand: change `index.html` or `i18n/*.json`, then run `npm run build:lang`. `npm run test:lang` (part of `npm test`) fails if they are out of date. |
 | `_config.yml` | Keeps `tests/`, `README.md` and the npm manifests out of the published site. They remain in the public repository. |
 | `tests/` | `check-i18n.mjs`, `e2e.mjs`, `serve.mjs` (dev tooling only). |
 

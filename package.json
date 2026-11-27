@@ -6,10 +6,12 @@
   "description": "Static portfolio for nuray.io (dev tooling only)",
   "scripts": {
     "test:i18n": "node tests/check-i18n.mjs",
+    "build:lang": "node tools/build-lang-pages.mjs",
+    "test:lang": "node tools/build-lang-pages.mjs --check",
     "test:e2e": "node tests/e2e.mjs",
     "test:contrast": "node tests/check-contrast.mjs",
     "test:worker": "node --test worker/test/",
-    "test": "npm run test:i18n && npm run test:contrast && npm run test:worker && npm run test:e2e",
+    "test": "npm run test:i18n && npm run test:lang && npm run test:contrast && npm run test:worker && npm run test:e2e",
     "start": "node tests/serve.mjs",
     "refresh:github": "node tools/refresh-github-data.mjs",
     "dev:contact": "node tests/contact-dev.mjs"
