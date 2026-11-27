@@ -179,7 +179,7 @@
   "contact.err.messageRequired": "Bitte geben Sie Ihre Nachricht ein.",
   "contact.err.messageShort": "Ihre Nachricht ist zu kurz. Bitte schreiben Sie mindestens 10 Zeichen.",
   "contact.err.messageLong": "Ihre Nachricht ist zu lang. Bitte verwenden Sie höchstens 3.000 Zeichen.",
-  "contact.err.message": "Bitte schreiben Sie eine sinnvolle Nachricht: höchstens 2 Links, kein Zeichen mehr als 6-mal hintereinander und kein Wort mit mehr als 60 Zeichen.",
+  "contact.err.message": "Bitte überprüfen Sie Ihre Nachricht: Sie darf höchstens 2 Links enthalten; wiederholte Zeichen und sehr lange Wörter sind nicht zulässig.",
   "contact.err.captcha": "Bitte schließen Sie zuerst die Sicherheitsprüfung ab.",
   "contact.err.captchaFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
   "contact.err.captchaLoad": "Die Sicherheitsprüfung konnte nicht geladen werden. Bitte versuchen Sie es später erneut oder kontaktieren Sie mich über LinkedIn.",

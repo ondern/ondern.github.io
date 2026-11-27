@@ -697,7 +697,7 @@ await test('Contact form validation: every problem appears at once, small, under
   await p.click('#cf-submit');
   await p.waitForFunction(() => document.getElementById('cf-email-error').textContent.length > 0);
   s = await snap(p);
-  expectField(s, 'email', /valid email/, 'server validation'); expectField(s, 'message', /meaningful message/, 'server validation'); expectClean(s, 'name', 'server validation');
+  expectField(s, 'email', /valid email/, 'server validation'); expectField(s, 'message', /review your message/, 'server validation'); expectClean(s, 'name', 'server validation');
   if (!/highlighted fields/.test(s.summary) || s.ts) throw new Error('server validation: ' + JSON.stringify({ summary: s.summary, ts: s.ts }));
   await p.focus('#cf-subject'); await p.focus('#cf-name'); // leaving the fields must not remove what the server said
   expectField(await snap(p), 'email', /valid email/, 'server validation after leaving the field');
