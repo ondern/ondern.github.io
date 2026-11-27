@@ -169,7 +169,7 @@
   "contact.sending": "Sending…",
   "contact.waiting": "Security check in progress…",
   "contact.verify": "Security check",
-  "contact.success": "Almost done! We sent a confirmation link to {email}. Please open the link in that email within 15 minutes and confirm. Your message will be delivered once your email address has been verified. If you cannot find the email in your inbox, please check your spam folder.",
+  "contact.success": "Almost done! We’ve sent a verification link to {email}. Please open the link in the email within 15 minutes to verify your email address. Your message will be sent once your email address has been verified. If you can’t find the email in your inbox, please check your spam folder.",
   "contact.err.fix": "Please check the highlighted fields and try again.",
   "contact.err.nameRequired": "Please enter your name.",
   "contact.err.name": "Please enter a valid name (2 to 80 characters; letters, spaces, hyphens, dots and apostrophes only).",

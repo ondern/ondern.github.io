@@ -436,7 +436,7 @@ const PRIVACY_BASE = {
   de: 'Ihre Nachricht wird über den Bot-Schutz von Cloudflare sowie die E-Mail-Dienste Resend und Zoho verarbeitet. Bitte teilen Sie keine sensiblen personenbezogenen Daten mit.',
   tr: 'Mesajınız, Cloudflare bot koruması ile Resend ve Zoho e-posta hizmetleri aracılığıyla işlenir. Lütfen hassas kişisel bilgilerinizi paylaşmayın.',
 };
-const SUCCESS = { en: 'We sent a confirmation link to ada@example.org', de: 'Bestätigungslink an ada@example.org gesendet', tr: 'ada@example.org adresine bir doğrulama bağlantısı gönderdik' };
+const SUCCESS = { en: 'sent a verification link to ada@example.org', de: 'Bestätigungslink an ada@example.org gesendet', tr: 'ada@example.org adresine bir doğrulama bağlantısı gönderdik' };
 const EMAIL_HINT = { en: 'a verification link will be sent to your email address', de: 'wird ein Bestätigungslink an Ihre E-Mail-Adresse gesendet', tr: 'e-posta adresinize bir doğrulama bağlantısı gönderilecektir' };
 await test('Contact form: active in en/de/tr with the approved disclosure; nothing contacted or stored before interaction', async () => {
   const words = { en: ['Send message', 'Name'], de: ['Nachricht senden', 'Name'], tr: ['Mesajı gönder', 'Ad'] };
@@ -505,13 +505,13 @@ await test('Contact form: the confirmation notice stays and follows the language
   await p.clock.fastForward(4000);
   await p.click('#cf-submit');
   const text = () => p.evaluate(() => ({ s: document.getElementById('cf-status').textContent, kind: document.getElementById('cf-status').dataset.kind, hidden: document.getElementById('cf-resend').hidden, disabled: document.getElementById('cf-resend').disabled }));
-  await p.waitForFunction(() => /We sent a confirmation link to ada@example.org/.test(document.getElementById('cf-status').textContent));
+  await p.waitForFunction(() => /sent a verification link to ada@example.org/.test(document.getElementById('cf-status').textContent));
   let s = await text();
   if (s.hidden || !s.disabled || s.kind !== 'success') throw new Error('the new-link button must appear but wait a minute: ' + JSON.stringify(s));
   if (!/15 minutes/.test(s.s) || !/spam/.test(s.s)) throw new Error('notice must name the 15 minutes and the spam folder: ' + s.s);
   await p.clock.fastForward(30000);
   s = await text();
-  if (!/We sent a confirmation link/.test(s.s) || !s.disabled) throw new Error('the notice must stay (no timer) and the button must still wait: ' + JSON.stringify(s));
+  if (!/sent a verification link/.test(s.s) || !s.disabled) throw new Error('the notice must stay (no timer) and the button must still wait: ' + JSON.stringify(s));
   await p.evaluate(() => { const sel = document.querySelector('[data-lang-select]'); sel.value = 'de'; sel.dispatchEvent(new Event('change')); });
   await p.waitForFunction(() => /Bestätigungslink an ada@example.org gesendet/.test(document.getElementById('cf-status').textContent));
   await p.clock.fastForward(31000);
@@ -843,7 +843,7 @@ await test('Contact local dev harness: real Worker code, mocked Turnstile/Resend
     const resp = p.waitForResponse((r) => r.url() === 'http://localhost:8787/contact' && r.request().method() === 'POST');
     await p.click('#cf-submit');
     const r = await resp;
-    await p.waitForFunction(() => /We sent a confirmation link to ada@example.org/.test(document.getElementById('cf-status').textContent));
+    await p.waitForFunction(() => /sent a verification link to ada@example.org/.test(document.getElementById('cf-status').textContent));
     if (r.status() !== 200 || r.headers()['x-contact-dev-mock'] !== '1') throw new Error('unexpected API response ' + r.status());
     // Nothing reaches the owner before the link is used.
     if (/would send the owner notification/.test(out)) throw new Error('the owner was notified before the e-mail address was confirmed');

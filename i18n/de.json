@@ -169,7 +169,7 @@
   "contact.sending": "Wird gesendet …",
   "contact.waiting": "Sicherheitsprüfung läuft …",
   "contact.verify": "Sicherheitsprüfung",
-  "contact.success": "Fast geschafft! Wir haben einen Bestätigungslink an {email} gesendet. Bitte öffnen Sie den Link in der E-Mail innerhalb von 15 Minuten und bestätigen Sie ihn. Ihre Nachricht wird zugestellt, sobald Ihre E-Mail-Adresse bestätigt wurde. Falls Sie die E-Mail nicht in Ihrem Posteingang finden, prüfen Sie bitte Ihren Spam-Ordner.",
+  "contact.success": "Fast geschafft! Wir haben einen Bestätigungslink an {email} gesendet. Bitte öffnen Sie den Link in der E-Mail innerhalb von 15 Minuten, um Ihre E-Mail-Adresse zu bestätigen. Sobald Ihre E-Mail-Adresse bestätigt wurde, wird Ihre Nachricht übermittelt. Falls Sie die E-Mail nicht in Ihrem Posteingang finden, prüfen Sie bitte Ihren Spam-Ordner.",
   "contact.err.fix": "Bitte prüfen Sie die markierten Felder und versuchen Sie es erneut.",
   "contact.err.nameRequired": "Bitte geben Sie Ihren Namen ein.",
   "contact.err.name": "Bitte geben Sie einen gültigen Namen ein (2 bis 80 Zeichen; nur Buchstaben, Leerzeichen, Bindestriche, Punkte und Apostrophe).",
