@@ -60,7 +60,7 @@ const body = async (res) => res.json();
 const tokenIn = (call) => (call.body.text.match(/#t=([A-Za-z0-9_-]{43})/) || [])[1];
 const verify = (env, token, ctx) => handle(req('/contact/verify', { token }), env, ctx);
 const resendLink = (env, resend) => handle(req('/contact/resend', { resend }), env);
-const kinds = () => calls.resend.map((c) => (c.body.reply_to ? 'owner' : c.body.subject.match(/bestätigen|confirm|onayla/i) ? 'verify' : 'ack'));
+const kinds = () => calls.resend.map((c) => (c.body.reply_to ? 'owner' : c.body.subject.match(/bestätigen|verify|doğrula/i) ? 'verify' : 'ack'));
 const rows = (env, sql) => env.DB.raw.prepare(sql).all();
 
 // Submits a form and returns the answer plus the token from the confirmation mail.
@@ -128,7 +128,7 @@ test('submitting only mails a confirmation link: nothing reaches the owner befor
 });
 
 test('the confirmation mail carries no visitor-supplied text and follows the form language', async () => {
-  for (const [lang, re] of [['tr', /doğrulayın/], ['en', /confirm your email address/], ['de', /bestätigen/]]) {
+  for (const [lang, re] of [['tr', /doğrulayın/], ['en', /verify your email address/], ['de', /bestätigen/]]) {
     beforeEachMocks();
     await handle(post(good({ lang, name: 'Eve Secretname', subject: 'Subjectmarker', message: 'Private message body marker' })), makeEnv());
     const mail = calls.resend[0].body;
